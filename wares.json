@@ -5,7 +5,7 @@
             "kind": "plugin",
             "name": "stop-motion",
             "title": "Stop Motion",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "description": "A ```stop-motion fence in the md carries a numbered image series (0..n) + fps; installed and enabled, the serve-time filter decodes it into stacked frames and animates them — pure CSS steps-by-delay, no JS. Admin routes mint fences and re-time the speed (mint, speed). Malformed fences stay visible in the md: degrades, never dead.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "plugins/stop-motion"
@@ -23,7 +23,7 @@
             "kind": "template",
             "name": "catflash",
             "title": "Catflash",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "description": "The one-pager: one page, many sections, an anchor nav that follows the scroll. Pristine graphite-on-paper starter — the blank slate you dress into a person.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "templates/catflash"

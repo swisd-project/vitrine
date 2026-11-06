@@ -1,8 +1,8 @@
 /* Catflash — the one-pager. One page, many sections, an anchor nav that
-   follows the scroll. Pristine graphite-on-paper: this theme exists to be
-   copied and dressed into a person. Tokens up top, structure below — change
-   the tokens first, most of the panel follows. All sm- coverage follows
-   docs/theme-contract.md. */
+   follows the scroll. The hero (first section holding a stop-motion stage)
+   fills the DOM in a 60/40 split: picture left, person right. Pristine
+   graphite-on-paper: change the tokens first, most of the panel follows.
+   All sm- coverage follows docs/theme-contract.md. */
 
 :root {
   --paper: #fafafa;
@@ -11,6 +11,7 @@
   --line: #e2e2e2;
   --panel: #ffffff;
   --accent: #0070f3; /* ONE accent, undressed — the only token with an opinion */
+  --edge: clamp(1.25rem, 4vw, 3.5rem); /* the page's outer margin, both sides alike */
 }
 
 * { box-sizing: border-box; }
@@ -19,6 +20,9 @@ html { scroll-behavior: smooth; } /* anchor clicks glide — the one-pager's who
 
 body {
   margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column; /* header / main / footer — main grows, the DOM is filled */
   background: var(--paper);
   color: var(--ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -33,7 +37,7 @@ body {
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
-  padding: 1rem 1.5rem;
+  padding: 1rem var(--edge);
 }
 
 .brand {
@@ -81,10 +85,22 @@ body {
 .cf-sections a.active,
 .cf-sections span.active { color: var(--accent); font-weight: 700; }
 
+/* ——— the body flow ———
+   Slided pages: the measure moves onto the sections themselves, main becomes
+   the full-width stage floor. Bare pages keep the container measure. */
 main {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
   max-width: 44rem;
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
+}
+main:has(> .sm-slide),
+main:has(> .stop-motion-stage) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 main h1, main h2, main h3 { line-height: 1.25; color: var(--ink); }
@@ -107,17 +123,100 @@ main pre code { background: none; padding: 0; }
 main hr { border: none; border-top: 1px solid var(--line); margin: 2.5rem 0; }
 
 /* ——— the sections: the one-pager's chapters ———
-   No snap, no viewport cage: they flow like a document, separated by hairlines,
-   each with breathing room and anchor clearance for the sticky header. */
+   No snap, no viewport cage: they flow like a document, separated by hairlines.
+   Each carries its own measure (main is full-width on slided pages). */
 .sm-slide {
-  padding: 3rem 0;
+  flex: none;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
   border-bottom: 1px solid var(--line);
   scroll-margin-top: 4.5rem;
 }
-.sm-slide:last-child { border-bottom: none; padding-bottom: 0; }
+.sm-slide:last-child { border-bottom: none; padding-bottom: 3rem; }
 .sm-slide > :first-child { margin-top: 0; }
 .sm-slide > :last-child { margin-bottom: 0; }
 .sm-slide p, .sm-slide ul, .sm-slide ol { max-width: 44rem; }
+
+/* ——— the hero: the first section fills the DOM ———
+   It grows to own every pixel the header and footer leave free, its content
+   breathing centered in the middle. */
+main > .sm-slide:first-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  padding: 2rem var(--edge);
+}
+
+/* ——— the hero split: a stop-motion stage in the section splits it 60/40 ———
+   Picture takes the 60, the person's words take the 40. The stage's column
+   breathes on top, left and bottom (the 20px gap is its right neighbour);
+   the words' right edge keeps the same outer margin the picture's left edge
+   has — one --edge, both sides. The plugin's own stage CSS (inline, per page)
+   loses on specificity, so the dress stays the theme's. */
+main > .sm-slide:first-child:has(> .stop-motion-stage),
+main:has(> .stop-motion-stage) {
+  display: grid;
+  grid-template-columns: 60fr 40fr;
+  gap: 20px;
+  align-items: center;
+}
+main > .sm-slide:first-child:has(> .stop-motion-stage) > .stop-motion-stage,
+main > .stop-motion-stage {
+  grid-column: 1;
+  grid-row: 1 / span 30; /* the picture spans the words' full height */
+  margin: clamp(1.5rem, 4vh, 3rem) 0 clamp(1.5rem, 4vh, 3rem) clamp(0.75rem, 2vw, 2rem);
+}
+
+/* the 40: headline rows, labels, availability — every element perfectly
+   horizontally centered in its column */
+main > .sm-slide:first-child:has(> .stop-motion-stage) > :not(.stop-motion-stage),
+main:has(> .stop-motion-stage) > :not(.stop-motion-stage) {
+  text-align: center;
+}
+main > .sm-slide:first-child:has(> .stop-motion-stage) > h1,
+main:has(> .stop-motion-stage) > h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+main > .sm-slide:first-child:has(> .stop-motion-stage) > h1 + h1,
+main:has(> .stop-motion-stage) > h1 + h1 { margin-top: 0; } /* two rows, one headline */
+main > .sm-slide:first-child:has(> .stop-motion-stage) > h1 ~ p,
+main:has(> .stop-motion-stage) > h1 ~ p {
+  margin: 1.5rem 0 0;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: clamp(0.85rem, 1.4vw, 1rem);
+}
+
+/* ——— the primary button (theme-owned cf- prefix) ———
+   The md cannot mint a disabled button — a drunken-monk html envelope does;
+   this is its dress. */
+.cf-btn {
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.7rem 1.6rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--panel);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.cf-btn:not(:disabled):hover { filter: brightness(1.08); }
+.cf-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 /* Modules that arrived unknown or failed validation — inert, visible, honest. */
 .sm-unknown-module {
@@ -135,6 +234,7 @@ main hr { border: none; border-top: 1px solid var(--line); margin: 2.5rem 0; }
 .sm-notfound h1 { font-size: 4rem; margin: 0; color: var(--accent); }
 
 .site-foot {
+  flex: none;
   border-top: 1px solid var(--line);
   color: var(--ink-soft);
   font-size: 0.85rem;
@@ -182,4 +282,17 @@ hr.sm-more {
   width: 40%;
   margin: 2.5rem auto;
   opacity: 0.5;
+}
+
+/* ——— narrow doors: the split stacks, picture first ——— */
+@media (max-width: 720px) {
+  main > .sm-slide:first-child:has(> .stop-motion-stage),
+  main:has(> .stop-motion-stage) {
+    grid-template-columns: 1fr;
+  }
+  main > .sm-slide:first-child:has(> .stop-motion-stage) > .stop-motion-stage,
+  main > .stop-motion-stage {
+    grid-row: auto;
+    margin: 0 0 1rem;
+  }
 }
