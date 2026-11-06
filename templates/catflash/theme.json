@@ -1,0 +1,20 @@
+{
+  "name": "catflash",
+  "title": "Catflash",
+  "version": "0.1.0",
+  "description": "Pristine starter theme: one clean gray frame, nothing personal — the blank slate you dress into a person. Classical page and full-screen slide door both included.",
+  "defaultStyle": "slide",
+  "styles": ["classical", "slide"],
+  "placeholders": [
+    "siteName",
+    "claim",
+    "claimHtml",
+    "logoUrl",
+    "logoHtml",
+    "pageTitle",
+    "bodyHtml",
+    "seoHead",
+    "themeBase",
+    "year"
+  ]
+}

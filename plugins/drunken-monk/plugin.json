@@ -1,0 +1,13 @@
+{
+  "name": "drunken-monk",
+  "title": "Drunken Monk",
+  "version": "0.1.0",
+  "description": "Machine-generated payloads living plainly in the md: a ```drunken-monk fence carries a monk banner + a base64 envelope; installed and enabled, the serve-time filter decodes it into style/script/html behaviour. Editor keeps the monk, published page keeps the behaviour.",
+  "capabilities": {
+    "contentFilters": ["drunken_monk_page"],
+    "routes": [
+      { "path": "encode", "auth": "admin" },
+      { "path": "decode", "auth": "admin" }
+    ]
+  }
+}

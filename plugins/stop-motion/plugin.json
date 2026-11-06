@@ -1,0 +1,21 @@
+{
+  "name": "stop-motion",
+  "title": "Stop Motion",
+  "version": "0.2.0",
+  "description": "An animation block in the page's dedicated stop-motion/ folder: upload or delete frame files (any continuous-numbering, gaps tolerated, filenames only), set the fps, and the block plays them as a pure-CSS stop-motion. The canvas modal manages frames end to end; the serve-time filter decodes the ```stop-motion fence into stacked, CSS-only frames. Malformed fences stay visible in the md: degrades, never dead.",
+  "capabilities": {
+    "contentFilters": ["stop_motion_page"],
+    "editorBlocks": [
+      {
+        "name": "stop_motion_frame",
+        "label": "Stop Motion",
+        "modal": "stop-motion",
+        "template": "```stop-motion\n{\"files\":[],\"dir\":\"stop-motion\",\"fps\":8}\n```"
+      }
+    ],
+    "routes": [
+      { "path": "mint", "auth": "admin" },
+      { "path": "speed", "auth": "admin" }
+    ]
+  }
+}

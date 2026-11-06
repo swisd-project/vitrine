@@ -1,4 +1,32 @@
 {
-  "schema": 1,
-  "wares": []
+    "schema": 1,
+    "wares": [
+        {
+            "kind": "plugin",
+            "name": "stop-motion",
+            "title": "Stop Motion",
+            "version": "0.2.0",
+            "description": "A ```stop-motion fence in the md carries a numbered image series (0..n) + fps; installed and enabled, the serve-time filter decodes it into stacked frames and animates them — pure CSS steps-by-delay, no JS. Admin routes mint fences and re-time the speed (mint, speed). Malformed fences stay visible in the md: degrades, never dead.",
+            "requiresSchmarrn": ">=1.0.0",
+            "path": "plugins/stop-motion"
+        },
+        {
+            "kind": "plugin",
+            "name": "drunken-monk",
+            "title": "Drunken Monk",
+            "version": "0.1.0",
+            "description": "Machine-generated payloads living plainly in the md: a ```drunken-monk fence carries a monk banner + a base64 envelope; installed and enabled, the serve-time filter decodes it into style/script/html behaviour. Editor keeps the monk, published page keeps the behaviour.",
+            "requiresSchmarrn": ">=1.0.0",
+            "path": "plugins/drunken-monk"
+        },
+        {
+            "kind": "template",
+            "name": "catflash",
+            "title": "Catflash",
+            "version": "0.1.0",
+            "description": "Pristine starter theme: one clean graphite-on-paper frame, nothing personal — the blank slate to copy and dress into a person. Both doors included (classical page + full-screen slide deck with dots).",
+            "requiresSchmarrn": ">=1.0.0",
+            "path": "templates/catflash"
+        }
+    ]
 }

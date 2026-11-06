@@ -34,6 +34,8 @@ The CMS gains (no code committed yet, ledger-tracked) a GUI that loads templates
         "version": "0.1.0",
         "description": "…",
         "requiresSchmarrn": ">=1.0.0", // optional; also an optional manifest field
+        "requires": ["drunken-monk"],  // optional — plugin wares this one needs ON THE HOST
+                                       // before its own install clears the CMS lid
         "path": "plugins/hello"      // repo-relative folder to extract
       }
     ]
@@ -44,7 +46,7 @@ The CMS gains (no code committed yet, ledger-tracked) a GUI that loads templates
   (`codeload.github.com/swisd-project/vitrine/zip/heads/main` — stable public URL)
   with PHP and extracts **only `<path>/`** into the matching Schmarrn home
   (`bridge/plugins/<name>/` or `bridge/templates/<name>/`). ZipArchive does the
-  unpacking on any shared host; no per-ware zips, no release machinery.
+  unpacking on hosts that ship it, PharData covers the rest — no per-ware zips, no release machinery.
 - **Install-time discernment rules (enforced by the CMS before enabling):**
   dir name matches `[a-z0-9-]+`; registry `name` matches the actual manifest `name`;
   `requiresSchmarrn` satisfied by the host version; upgrade = overwrite only if the

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{seoHead}}
+  <link rel="stylesheet" href="{{themeBase}}assets/catflash.css">
+  <script src="{{themeBase}}assets/deck.js" defer></script>
+</head>
+<body class="slide">
+  <header class="slide-brand">
+    <a href="/">{{siteName}}</a>
+    {{navHtml}}
+  </header>
+
+  <main class="slide-stage">
+{{bodyHtml}}
+  </main>
+
+  <footer class="slide-foot">
+    <span class="site-name">{{siteName}}</span>
+    <span>© {{year}}</span>
+  </footer>
+</body>
+</html>
