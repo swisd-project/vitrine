@@ -23,8 +23,8 @@
             "kind": "template",
             "name": "catflash",
             "title": "Catflash",
-            "version": "0.1.0",
-            "description": "Pristine starter theme: one clean graphite-on-paper frame, nothing personal — the blank slate to copy and dress into a person. Both doors included (classical page + full-screen slide deck with dots).",
+            "version": "0.2.0",
+            "description": "The one-pager: one page, many sections, an anchor nav that follows the scroll. Pristine graphite-on-paper starter — the blank slate you dress into a person.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "templates/catflash"
         }

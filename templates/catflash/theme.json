@@ -1,10 +1,10 @@
 {
   "name": "catflash",
   "title": "Catflash",
-  "version": "0.1.0",
-  "description": "Pristine starter theme: one clean gray frame, nothing personal — the blank slate you dress into a person. Classical page and full-screen slide door both included.",
-  "defaultStyle": "slide",
-  "styles": ["classical", "slide"],
+  "version": "0.2.0",
+  "description": "The one-pager: one page, many sections, an anchor nav that follows the scroll. Pristine graphite-on-paper starter — the blank slate you dress into a person.",
+  "defaultStyle": "classical",
+  "styles": ["classical"],
   "placeholders": [
     "siteName",
     "claim",

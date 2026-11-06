@@ -1,7 +1,8 @@
-/* Catflash — the pristine starter. One clean graphite-on-paper frame and
-   nothing personal: this theme exists to be copied and dressed into a person.
-   Tokens up top, structure below — change the tokens first, most of the panel
-   follows. All sm- coverage follows docs/theme-contract.md. */
+/* Catflash — the one-pager. One page, many sections, an anchor nav that
+   follows the scroll. Pristine graphite-on-paper: this theme exists to be
+   copied and dressed into a person. Tokens up top, structure below — change
+   the tokens first, most of the panel follows. All sm- coverage follows
+   docs/theme-contract.md. */
 
 :root {
   --paper: #fafafa;
@@ -14,6 +15,8 @@
 
 * { box-sizing: border-box; }
 
+html { scroll-behavior: smooth; } /* anchor clicks glide — the one-pager's whole gait */
+
 body {
   margin: 0;
   background: var(--paper);
@@ -22,11 +25,15 @@ body {
   line-height: 1.65;
 }
 
-/* ——— classical door: header / brand / claim / nav ——— */
+/* ——— the header: sticky, the one-pager's fixed point ——— */
 .site-head {
-  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
 }
 
 .brand {
@@ -40,7 +47,7 @@ body {
 .brand .logo { height: 2.4rem; width: auto; }
 
 .site-name {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -56,10 +63,28 @@ body {
 .sm-nav a:hover { color: var(--accent); }
 .sm-nav a[aria-current] { color: var(--accent); font-weight: 700; }
 
+/* ——— the section nav (sections.js builds it; this is the dress) ———
+   Sits in the sticky header under the page nav: one link per section,
+   the live one marked. A span (id-less section) reads quieter than a link. */
+.cf-sections {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+.cf-sections a,
+.cf-sections span { color: var(--ink-soft); text-decoration: none; }
+.cf-sections a:hover { color: var(--accent); }
+.cf-sections a.active,
+.cf-sections span.active { color: var(--accent); font-weight: 700; }
+
 main {
   max-width: 44rem;
   margin: 0 auto;
-  padding: 2.5rem 1.5rem 3rem;
+  padding: 2rem 1.5rem 3rem;
 }
 
 main h1, main h2, main h3 { line-height: 1.25; color: var(--ink); }
@@ -81,6 +106,19 @@ main pre { overflow-x: auto; }
 main pre code { background: none; padding: 0; }
 main hr { border: none; border-top: 1px solid var(--line); margin: 2.5rem 0; }
 
+/* ——— the sections: the one-pager's chapters ———
+   No snap, no viewport cage: they flow like a document, separated by hairlines,
+   each with breathing room and anchor clearance for the sticky header. */
+.sm-slide {
+  padding: 3rem 0;
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 4.5rem;
+}
+.sm-slide:last-child { border-bottom: none; padding-bottom: 0; }
+.sm-slide > :first-child { margin-top: 0; }
+.sm-slide > :last-child { margin-bottom: 0; }
+.sm-slide p, .sm-slide ul, .sm-slide ol { max-width: 44rem; }
+
 /* Modules that arrived unknown or failed validation — inert, visible, honest. */
 .sm-unknown-module {
   border: 2px dashed var(--line);
@@ -92,56 +130,6 @@ main hr { border: none; border-top: 1px solid var(--line); margin: 2.5rem 0; }
 
 /* Client-side fallback shell target — brief blank while the browser bakes. */
 .sm-fallback:empty { min-height: 40vh; }
-
-/* ——— slide style: the full-screen page standard ——— */
-body.slide {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--paper);
-}
-
-.slide-brand {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1.5rem;
-  padding: 1rem 2rem;
-}
-.slide-brand a {
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  color: var(--ink);
-  text-decoration: none;
-}
-.slide-brand a:hover { color: var(--accent); }
-.slide-brand .sm-nav { margin-top: 0; }
-
-.slide-stage {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  max-width: 52rem;
-  width: 100%;
-  margin: 0 auto;
-  padding: 3rem 2rem;
-}
-
-.slide-stage h1 { font-size: clamp(2.2rem, 6vw, 4rem); }
-.slide-stage h2 { font-size: clamp(1.6rem, 4vw, 2.4rem); }
-.slide-stage p  { font-size: clamp(1.05rem, 2vw, 1.3rem); }
-
-.slide-foot {
-  display: flex;
-  justify-content: space-between;
-  padding: 1rem 2rem;
-  color: var(--ink-soft);
-  font-size: 0.85rem;
-  border-top: 1px solid var(--line);
-}
 
 .sm-notfound { text-align: center; padding: 3rem 0; }
 .sm-notfound h1 { font-size: 4rem; margin: 0; color: var(--accent); }
@@ -163,58 +151,6 @@ body.slide {
   color: var(--ink-soft);
   font-style: italic;
 }
-
-/* ——— the deck: the DOCUMENT scrolls, the root snaps. No inner scroller cage. ———
-   Native snap = native momentum, native keys, native anchors.
-   This machinery is load-bearing: copy it, don't trim it. */
-html:has(.slide-stage > .sm-slide) {
-  scroll-snap-type: y mandatory;
-  scroll-behavior: smooth;
-  scrollbar-width: none; /* the deck is the scrollbar */
-}
-html:has(.slide-stage > .sm-slide)::-webkit-scrollbar { display: none; }
-html:has(.slide-stage > .sm-slide) body.slide {
-  display: block; /* document scroll, no flex column */
-  min-height: 100vh;
-}
-html:has(.slide-stage > .sm-slide) .slide-brand {
-  position: fixed; left: 0; right: 0; top: 0; z-index: 20;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(8px);
-}
-/* the footer is NOT a snap target: it flows after the last slide. */
-html:has(.slide-stage > .sm-slide) .slide-foot {
-  border-top: none;
-  padding: 1.5rem 2rem 2rem;
-}
-html:has(.slide-stage > .sm-slide) .slide-foot a { color: inherit; }
-.slide-stage:has(> .sm-slide) {
-  display: block; /* the slides ARE the page */
-  max-width: none;
-  width: 100%;
-  padding: 0;
-  margin: 0;
-}
-.slide-stage:has(> .sm-slide) > .sm-slide {
-  min-height: 100vh;         /* each slide owns the viewport */
-  scroll-snap-align: start;
-  scroll-snap-stop: always;  /* one slide per gesture — natively */
-  box-sizing: border-box;
-  padding: 4.5rem 2rem;      /* clears the fixed brand / foot */
-}
-/* slide content breathes: nothing pins to the very edge of a full-height slide */
-.sm-slide > :first-child { margin-top: 0; }
-.sm-slide > :last-child { margin-bottom: 0; }
-.sm-slide p, .sm-slide ul, .sm-slide ol { max-width: 52rem; }
-.sm-slide {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  max-width: 52rem;
-  width: 100%;
-  margin: 0 auto;
-}
-.sm-slide:target { outline: none; }
 
 /* ——— the callout (:::note) ——— */
 .sm-note {
@@ -247,30 +183,3 @@ hr.sm-more {
   margin: 2.5rem auto;
   opacity: 0.5;
 }
-
-/* ——— deck dots (deck.js builds them; this is the dress) ——— */
-.sm-dots {
-  position: fixed;
-  right: 1.25rem;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-.sm-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ink-soft);
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-}
-.sm-dot:hover { transform: scale(1.4); border-color: var(--accent); }
-.sm-dot.active { background: var(--accent); border-color: var(--accent); }
-.sm-slide { transition: opacity 0.3s ease; }
-.sm-slide.active { opacity: 1; }
-html:has(.slide-stage > .sm-slide) .sm-slide:not(.active) { opacity: 0.92; }
