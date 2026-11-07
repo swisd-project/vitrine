@@ -144,13 +144,34 @@ function plugin_stop_motion_page(array $ctx, string $html): string
         // Survivors first: a fence may still name frames the folder has lost
         // (deleted after the save). The dead stay out of the march, the live
         // re-rank with no gaps and no freezes — the folder IS the truth.
+        // ONE directory read, zero per-frame stats (boundary/optimization
+        // pass, 2026-11-07): up to 300 declared frames × every fence × every
+        // request each cost an is_file stat; the tray flip answers the whole
+        // march from one opendir+readdir. (glob+GLOB_MARK was measured on the
+        // way here — it stat's every entry, the same cost as is_file; scandir
+        // does not.) The honest delta: a DIRECTORY named exactly like a
+        // declared frame now counts as present — a tray only a hand with
+        // server filesystem access could arrange, degrading to one broken
+        // <img> (the media route refuses directories), never a breach.
+        // Frames may carry a declared subpath; each distinct subpath rides
+        // its own one read.
         $rootDir = dirname(__DIR__, 3); // bridge/plugins/stop-motion → the repo root
         $tray = $rootDir . '/src/content/' . $ctx['type'] . '/' . $ctx['slug'] . '/'
             . (($clean['dir'] ?? '') !== '' ? $clean['dir'] . '/' : '');
+        $trays = [];
         $surviving = [];
         $dropped = [];
         foreach ($clean['files'] as $file) {
-            if (is_file($tray . $file)) {
+            // NOTE: $fdir/$fname — NEVER $base/$dir: the media URL base above
+            // owns $base; shadowing it corrupted every frame src (the boundary
+            // battery caught this before it shipped, 2026-11-07).
+            $slash = strrpos($file, '/');
+            $fdir = $slash === false ? '' : substr($file, 0, $slash);
+            $fname = $slash === false ? $file : substr($file, $slash + 1);
+            if (!isset($trays[$fdir])) {
+                $trays[$fdir] = array_fill_keys(scandir($tray . $fdir) ?: [], true);
+            }
+            if (isset($trays[$fdir][$fname])) {
                 $surviving[] = $file;
             } else {
                 $dropped[] = $file;

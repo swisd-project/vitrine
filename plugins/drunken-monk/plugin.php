@@ -1,7 +1,7 @@
 <?php
 
 /**
- * 1. Relative path: bridge/plugins/drunken-monk/plugin.php
+ * 1. Relative path: plugins/drunken-monk/plugin.php
  * 2. Description: The first real Schmarrn plugin. DRUNKEN MONK = machine-generated
  *                 payloads that live plainly in the md, wrapped in a monk banner
  *                 inside a ```drunken-monk fenced code block. mdms renders the
@@ -11,8 +11,14 @@
  *                 the serve-time p6 contentFilter (drunken_monk_page) decodes the
  *                 fence's final non-empty line (base64url JSON envelope) and
  *                 applies it by kind (style | script | html), swapping the fence
- *                 for a provenance comment. Any decode failure degrades to the
- *                 untouched notice + a log line — never a dead page. The minting
+ *                 for a provenance comment — but ONLY SEALED ENVELOPES (the
+ *                 integrity stamp, 2026-11-07, user law, closes B10): minting
+ *                 seals the envelope with the host's HMAC (bridge/config/
+ *                 monk.local.php, minted on first use); a hand-crafted fence
+ *                 carries no valid seal and degrades to the untouched notice —
+ *                 an editor cannot forge what only the admin route mints. Any
+ *                 decode failure degrades to the untouched notice + a log
+ *                 line — never a dead page. The minting
  *                 side: admin routes encode/decode (auth+CSRF enforced by the
  *                 core dispatch lid; handlers never re-check).
  * 3. Expects: Core-loaded only (never hit directly — the whitelist forbids it).
@@ -29,6 +35,64 @@ function drunken_monk_kinds(): array
     return ['style', 'script', 'html'];
 }
 
+// ——— the integrity stamp (2026-11-07, user law — closes B10) ———
+// A hand-crafted fence is just text in the md: the editor leash cannot see
+// a base64 code block, so an editor could forge what only the admin route
+// mints. The seal ends forgery: only envelopes stamped with THIS host's
+// HMAC apply at serve time; anything else degrades to the visible notice.
+
+/** The monk's seal secret — host-local, git-ignored, one file, fail-closed. */
+function drunken_monk_secretFile(): string
+{
+    // bridge/plugins/drunken-monk → bridge/config/monk.local.php (host layout)
+    return dirname(__DIR__, 2) . '/config/monk.local.php';
+}
+
+/** The seal secret as it stands on disk — null when absent (nothing verifies). */
+function drunken_monk_secret(): ?string
+{
+    $file = drunken_monk_secretFile();
+    if (!is_file($file)) {
+        return null;
+    }
+    try {
+        $cfg = (array)require $file;
+    } catch (\Throwable) {
+        return null;
+    }
+    $secret = $cfg['secret'] ?? null;
+    return is_string($secret) && $secret !== '' ? $secret : null;
+}
+
+/** The seal secret, minted on first need — null when the config home refuses. */
+function drunken_monk_ensureSecret(): ?string
+{
+    $existing = drunken_monk_secret();
+    if ($existing !== null) {
+        return $existing;
+    }
+    $file = drunken_monk_secretFile();
+    if (!is_dir(dirname($file))) {
+        return null; // no config home — fail-closed, no seal can exist
+    }
+    $secret = bin2hex(random_bytes(32));
+    if (@file_put_contents($file, "<?php\n\nreturn ['secret' => '" . $secret . "'];\n") === false) {
+        return null;
+    }
+    if (function_exists('opcache_invalidate')) {
+        @opcache_invalidate($file, true);
+    }
+    return $secret;
+}
+
+/** The seal: HMAC over the EXACT bytes the filter would apply — kind, code, name. */
+function drunken_monk_stamp(string $secret, string $kind, string $code, string $name): string
+{
+    $carrier = json_encode(['kind' => $kind, 'code' => $code, 'name' => $name],
+        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    return hash_hmac('sha256', (string)$carrier, $secret);
+}
+
 /** The banner the monk mints — the visible, human-facing notice. One voice, one face. */
 function drunken_monk_banner(array $envelope): string
 {
@@ -43,14 +107,27 @@ function drunken_monk_banner(array $envelope): string
 BANNER;
 }
 
-/** Mint the full md fence text from an envelope (what the author pastes into the md). */
+/** Mint the full md fence text from an envelope (what the author pastes into the md).
+ *  The envelope rides SEALED: mint normalizes the name, seals with the host's
+ *  HMAC, and only sealed envelopes apply at serve time. */
 function drunken_monk_mint(array $envelope): string
 {
+    $kind = (string)($envelope['kind'] ?? '');
+    $code = (string)($envelope['code'] ?? '');
+    $name = is_string($envelope['name'] ?? null) && $envelope['name'] !== '' ? $envelope['name'] : 'payload';
+    $secret = drunken_monk_ensureSecret();
+    if ($secret === null) {
+        // unsealable config home — the honest refusal; the route pre-checks this
+        @error_log('[schmarrn-plugins] drunken-monk: no seal could be minted — bridge/config must be writable.');
+        return '';
+    }
+    $sealed = ['kind' => $kind, 'code' => $code, 'name' => $name,
+        'stamp' => drunken_monk_stamp($secret, $kind, $code, $name)];
     $payload = rtrim(strtr(base64_encode(json_encode(
-        $envelope,
+        $sealed,
         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
     )), '+/', '-_'), '=');
-    return "```drunken-monk\n" . drunken_monk_banner($envelope) . "\n" . $payload . "\n```";
+    return "```drunken-monk\n" . drunken_monk_banner($sealed) . "\n" . $payload . "\n```";
 }
 
 /**
@@ -84,6 +161,18 @@ function plugin_drunken_monk_page(array $ctx, string $html): string
         }
         $kind = $envelope['kind'];
         $label = is_string($envelope['name'] ?? null) && $envelope['name'] !== '' ? $envelope['name'] : 'payload';
+        // THE SEAL GATE (B10 closed, 2026-11-07, user law): only envelopes this
+        // host's admin mint sealed with its HMAC apply. A hand-crafted fence —
+        // an editor forging script — has no valid stamp and degrades to the
+        // notice, byte-for-byte like any decode failure. Fail-closed: no
+        // secret on disk, nothing applies.
+        $stamp = (string)($envelope['stamp'] ?? '');
+        $secret = drunken_monk_secret();
+        if ($secret === null || $stamp === ''
+            || hash_equals(drunken_monk_stamp($secret, (string)$kind, (string)$envelope['code'], (string)$label), $stamp) === false) {
+            @error_log('[schmarrn-plugins] drunken-monk: unstamped envelope refused (integrity law) — the notice stands.');
+            return $m[0];
+        }
         $attr = htmlspecialchars($label, ENT_QUOTES);
         $tag = match ($kind) {
             'style' => '<style data-drunken-monk="' . $attr . '">' . $envelope['code'] . '</style>',
@@ -113,6 +202,9 @@ function plugin_drunken_monk_route_encode(string $method, array $body): array
         return ['_status' => 400, 'error' => 'Empty code — the monk only carries substance.'];
     }
     $envelope = ['kind' => $kind, 'code' => $code, 'name' => $name];
+    if (drunken_monk_ensureSecret() === null) {
+        return ['_status' => 500, 'error' => 'The monk\'s seal could not be minted — bridge/config must be writable once.'];
+    }
     return ['kind' => $kind, 'name' => $name, 'fence' => drunken_monk_mint($envelope)];
 }
 
@@ -137,5 +229,12 @@ function plugin_drunken_monk_route_decode(string $method, array $body): array
     if (!is_array($envelope)) {
         return ['_status' => 400, 'error' => 'The payload does not unravel — not a drunken monk envelope.'];
     }
-    return ['envelope' => $envelope];
+    // the seal verdict: would this envelope apply at serve time on THIS host?
+    $kind = (string)($envelope['kind'] ?? '');
+    $label = is_string($envelope['name'] ?? null) && $envelope['name'] !== '' ? $envelope['name'] : 'payload';
+    $stamp = (string)($envelope['stamp'] ?? '');
+    $secret = drunken_monk_secret();
+    $sealed = $secret !== null && $stamp !== ''
+        && hash_equals(drunken_monk_stamp($secret, $kind, (string)($envelope['code'] ?? ''), $label), $stamp);
+    return ['envelope' => $envelope, 'sealed' => $sealed];
 }

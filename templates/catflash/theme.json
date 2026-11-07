@@ -14,6 +14,7 @@
     "pageTitle",
     "bodyHtml",
     "seoHead",
+    "navHtml",
     "themeBase",
     "year"
   ]
