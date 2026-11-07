@@ -1,7 +1,7 @@
 {
   "name": "catflash",
   "title": "Catflash",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "The one-pager: one page, many sections, an anchor nav that follows the scroll. Pristine graphite-on-paper starter — the blank slate you dress into a person.",
   "defaultStyle": "classical",
   "styles": ["classical"],

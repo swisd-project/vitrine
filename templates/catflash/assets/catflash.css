@@ -97,7 +97,7 @@ main {
   padding: 2rem 1.5rem 3rem;
 }
 main:has(> .sm-slide),
-main:has(> .stop-motion-stage) {
+main:has(> :is(.stop-motion-stage, .sm-image)) {
   max-width: none;
   margin: 0;
   padding: 0;
@@ -151,21 +151,22 @@ main > .sm-slide:first-child {
   padding: 2rem var(--edge);
 }
 
-/* ——— the hero split: a stop-motion stage in the section splits it 60/40 ———
-   Picture takes the 60, the person's words take the 40. The stage's column
-   breathes on top, left and bottom (the 20px gap is its right neighbour);
-   the words' right edge keeps the same outer margin the picture's left edge
-   has — one --edge, both sides. The plugin's own stage CSS (inline, per page)
-   loses on specificity, so the dress stays the theme's. */
-main > .sm-slide:first-child:has(> .stop-motion-stage),
-main:has(> .stop-motion-stage) {
+/* ——— the hero split: a picture in the section splits it 60/40 ———
+   The picture is the stop-motion stage OR the (empty) image module — both are
+   the 60's tenant. The picture's column breathes on top, left and bottom (the
+   20px gap is its right neighbour); the words' right edge keeps the same outer
+   margin the picture's left edge has — one --edge, both sides. The plugin's
+   own stage CSS (inline, per page) loses on specificity, so the dress stays
+   the theme's. */
+main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)),
+main:has(> :is(.stop-motion-stage, .sm-image)) {
   display: grid;
   grid-template-columns: 60fr 40fr;
   gap: 20px;
   align-items: center;
 }
-main > .sm-slide:first-child:has(> .stop-motion-stage) > .stop-motion-stage,
-main > .stop-motion-stage {
+main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)) > :is(.stop-motion-stage, .sm-image),
+main > :is(.stop-motion-stage, .sm-image) {
   grid-column: 1;
   grid-row: 1 / span 30; /* the picture spans the words' full height */
   margin: clamp(1.5rem, 4vh, 3rem) 0 clamp(1.5rem, 4vh, 3rem) clamp(0.75rem, 2vw, 2rem);
@@ -173,21 +174,21 @@ main > .stop-motion-stage {
 
 /* the 40: headline rows, labels, availability — every element perfectly
    horizontally centered in its column */
-main > .sm-slide:first-child:has(> .stop-motion-stage) > :not(.stop-motion-stage),
-main:has(> .stop-motion-stage) > :not(.stop-motion-stage) {
+main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)) > :not(:is(.stop-motion-stage, .sm-image)),
+main:has(> :is(.stop-motion-stage, .sm-image)) > :not(:is(.stop-motion-stage, .sm-image)) {
   text-align: center;
 }
-main > .sm-slide:first-child:has(> .stop-motion-stage) > h1,
-main:has(> .stop-motion-stage) > h1 {
+main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)) > h1,
+main:has(> :is(.stop-motion-stage, .sm-image)) > h1 {
   margin: 0;
   font-size: clamp(2.4rem, 6vw, 4.5rem);
   line-height: 1.05;
   letter-spacing: 0.01em;
 }
-main > .sm-slide:first-child:has(> .stop-motion-stage) > h1 + h1,
-main:has(> .stop-motion-stage) > h1 + h1 { margin-top: 0; } /* two rows, one headline */
-main > .sm-slide:first-child:has(> .stop-motion-stage) > h1 ~ p,
-main:has(> .stop-motion-stage) > h1 ~ p {
+main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)) > h1 + h1,
+main:has(> :is(.stop-motion-stage, .sm-image)) > h1 + h1 { margin-top: 0; } /* two rows, one headline */
+main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)) > h1 ~ p,
+main:has(> :is(.stop-motion-stage, .sm-image)) > h1 ~ p {
   margin: 1.5rem 0 0;
   color: var(--ink-soft);
   letter-spacing: 0.08em;
@@ -286,12 +287,12 @@ hr.sm-more {
 
 /* ——— narrow doors: the split stacks, picture first ——— */
 @media (max-width: 720px) {
-  main > .sm-slide:first-child:has(> .stop-motion-stage),
-  main:has(> .stop-motion-stage) {
+  main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)),
+  main:has(> :is(.stop-motion-stage, .sm-image)) {
     grid-template-columns: 1fr;
   }
-  main > .sm-slide:first-child:has(> .stop-motion-stage) > .stop-motion-stage,
-  main > .stop-motion-stage {
+  main > .sm-slide:first-child:has(> :is(.stop-motion-stage, .sm-image)) > :is(.stop-motion-stage, .sm-image),
+  main > :is(.stop-motion-stage, .sm-image) {
     grid-row: auto;
     margin: 0 0 1rem;
   }

@@ -1,7 +1,8 @@
 {
   "name": "stop-motion",
   "title": "Stop Motion",
-  "version": "0.2.0",
+  "version": "0.2.2",
+  "requires": ["drunken-monk"],
   "description": "An animation block in the page's dedicated stop-motion/ folder: upload or delete frame files (any continuous-numbering, gaps tolerated, filenames only), set the fps, and the block plays them as a pure-CSS stop-motion. The canvas modal manages frames end to end; the serve-time filter decodes the ```stop-motion fence into stacked, CSS-only frames. Malformed fences stay visible in the md: degrades, never dead.",
   "capabilities": {
     "contentFilters": ["stop_motion_page"],
