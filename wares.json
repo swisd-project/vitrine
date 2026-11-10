@@ -27,7 +27,9 @@
             "version": "0.2.2",
             "description": "The one-pager: one page, many sections, an anchor nav that follows the scroll. Pristine graphite-on-paper starter — the blank slate you dress into a person.",
             "requiresSchmarrn": ">=1.0.0",
-            "path": "templates/catflash"
+            "path": "templates/catflash",
+            "preview": "templates/catflash/preview.png",
+            "styles": ["classical"]
         },
         {
             "kind": "plugin",
@@ -37,6 +39,15 @@
             "description": "The smallest possible proof of the plugin contract: one template placeholder (hello_badge) and one public API route (status). It ships inside Schmarrn as the preinstalled default plugin — deletable like any other, and installable here again whenever you want it back. Copy me to build your own.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "plugins/hello"
+        },
+        {
+            "kind": "plugin",
+            "name": "bienenstich",
+            "title": "Bienenstich (API)",
+            "version": "0.1.0",
+            "description": "The CMS's API surface as a ware: one GET hands a headless consumer the whole published site as JSON — the site face plus every page with title, slug, url, tags and the rendered body (body=0 for the light index). Plus a public needle (search) and a heartbeat (status). Read-only by law: never writes, never leaks a draft, answers the same to every hand.",
+            "requiresSchmarrn": ">=1.0.0",
+            "path": "plugins/bienenstich"
         }
     ]
 }
