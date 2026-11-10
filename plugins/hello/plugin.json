@@ -1,0 +1,13 @@
+{
+  "name": "hello",
+  "title": "Hello",
+  "version": "0.1.0",
+  "description": "Demo plugin: one template placeholder and one public API route. Copy me to build your own.",
+  "capabilities": {
+    "placeholders": ["hello_badge"],
+    "routes": [
+      { "path": "status", "auth": "public" },
+      { "path": "echo", "auth": "user" }
+    ]
+  }
+}

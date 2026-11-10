@@ -28,6 +28,15 @@
             "description": "The one-pager: one page, many sections, an anchor nav that follows the scroll. Pristine graphite-on-paper starter — the blank slate you dress into a person.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "templates/catflash"
+        },
+        {
+            "kind": "plugin",
+            "name": "hello",
+            "title": "Hello",
+            "version": "0.1.0",
+            "description": "The smallest possible proof of the plugin contract: one template placeholder (hello_badge) and one public API route (status). It ships inside Schmarrn as the preinstalled default plugin — deletable like any other, and installable here again whenever you want it back. Copy me to build your own.",
+            "requiresSchmarrn": ">=1.0.0",
+            "path": "plugins/hello"
         }
     ]
 }
