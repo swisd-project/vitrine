@@ -24,6 +24,36 @@
 
 declare(strict_types=1);
 
+/** The key — the secret lives in a `bienenstich.key` file beside this file
+ *  (site-local, never committed). No file or an empty file: the door is
+ *  welded shut. The client presents it as ?key=<secret> on any route. */
+function bienenstich_key(): string
+{
+    static $key = null;
+    if ($key === null) {
+        $file = __DIR__ . '/bienenstich.key';
+        $key = is_file($file) ? trim((string)file_get_contents($file)) : '';
+    }
+    return $key;
+}
+
+/** The door: every route passes here first. No key on disk, no key given,
+ *  or a wrong key — the answer is one plain line and nothing else. Exits
+ *  before the core's JSON writer: the bots get text, not a contract. */
+function bienenstich_gate(): void
+{
+    $key = bienenstich_key();
+    $given = is_string($_GET['key'] ?? null) ? (string)$_GET['key'] : '';
+    if ($key === '' || !hash_equals($key, $given)) {
+        if (!headers_sent()) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+        }
+        echo 'Bakery closed.';
+        exit;
+    }
+}
+
 /** The CORS door: the API answers any origin — a plain GET carries no custom
  *  headers and needs no preflight, and the content it serves is public
  *  content. One line, one law. */
@@ -108,6 +138,45 @@ function bienenstich_excerpt(string $raw, string $needle): string
     return '';
 }
 
+/** The mint: a random alphanumeric body for a key — random_int, not rand:
+ *  a secret forged from a predictable source is not a secret. */
+function bienenstich_mint(): string
+{
+    $alnum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $out = '';
+    for ($i = 0; $i < 32; $i++) {
+        $out .= $alnum[random_int(0, mb_strlen($alnum) - 1)];
+    }
+    return $out;
+}
+
+/** Admin route: GET /bridge/plugin/bienenstich/keygen — the key mint. No key
+ *  file yet: one is minted (bs_<version>_<random>) and written beside this
+ *  file. A key already on disk: it is shown, never clobbered — rotating is
+ *  ?rotate=1 and kills every consumer of the old key on purpose. Admin lid
+ *  only: the core gates this door, the API key never guards its own mint. */
+function plugin_bienenstich_route_keygen(string $method, array $body): array
+{
+    if ($method !== 'GET') {
+        return ['_status' => 405, 'error' => 'The mint answers GET only.'];
+    }
+    $file = __DIR__ . '/bienenstich.key';
+    $rotate = ($_GET['rotate'] ?? '') === '1';
+    $key = is_file($file) ? trim((string)file_get_contents($file)) : '';
+    if ($key === '' || $rotate) {
+        $key = 'bs_' . bienenstich_version() . '_' . bienenstich_mint();
+        if (@file_put_contents($file, $key . "\n", LOCK_EX) === false) {
+            return ['_status' => 500, 'error' => 'The key file is not writable — drop the secret in by hand.'];
+        }
+    }
+    return [
+        'ok' => true,
+        'key' => $key,
+        'rotated' => $rotate,
+        'usage' => '/bridge/plugin/bienenstich/content?key=' . $key,
+    ];
+}
+
 /** Public route: GET /bridge/plugin/bienenstich/content — the whole published
  *  site in one JSON document: the site face plus every published page (title,
  *  slug, url, tags, updatedAt) and — unless body=0 — the rendered body HTML.
@@ -117,6 +186,7 @@ function plugin_bienenstich_route_content(string $method, array $body): array
     if ($method !== 'GET') {
         return ['_status' => 405, 'error' => 'The API reads — GET only, one way in.'];
     }
+    bienenstich_gate();
     bienenstich_cors();
     $site = \Site\load();
     $home = \Serve\homeSlug($site);
@@ -154,6 +224,7 @@ function plugin_bienenstich_route_search(string $method, array $body): array
     if ($method !== 'GET') {
         return ['_status' => 405, 'error' => 'The needle reads — GET only.'];
     }
+    bienenstich_gate();
     bienenstich_cors();
     $needle = is_string($_GET['q'] ?? null) ? trim((string)$_GET['q']) : '';
     if ($needle === '') {
@@ -189,6 +260,7 @@ function plugin_bienenstich_route_status(string $method, array $body): array
     if ($method !== 'GET') {
         return ['_status' => 405, 'error' => 'The heartbeat beats on GET.'];
     }
+    bienenstich_gate();
     bienenstich_cors();
     $site = \Site\load();
     return [

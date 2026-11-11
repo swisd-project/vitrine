@@ -1,15 +1,17 @@
 {
   "name": "bienenstich",
   "title": "Bienenstich (API)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The CMS's API surface as a ware: one GET hands a headless consumer the whole published site as JSON — the site face plus every page with title, slug, url, tags and the rendered body (body=0 for the light index). Plus a public needle (search) and a heartbeat (status). Read-only by law: never writes, never leaks a draft, answers the same to every hand.",
   "capabilities": {
     "routes": [
+      { "path": "keygen", "auth": "admin" },
       { "path": "content", "auth": "public" },
       { "path": "search", "auth": "public" },
       { "path": "status", "auth": "public" }
     ],
     "drawer": [
+      { "label": "Bienenstich key", "href": "/bridge/plugin/bienenstich/keygen" },
       { "label": "Bienenstich API", "href": "/bridge/plugin/bienenstich/content" }
     ]
   }
