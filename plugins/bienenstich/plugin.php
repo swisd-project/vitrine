@@ -24,15 +24,22 @@
 
 declare(strict_types=1);
 
-/** The key — the secret lives in a `bienenstich.key` file beside this file
- *  (site-local, never committed). No file or an empty file: the door is
- *  welded shut. The client presents it as ?key=<secret> on any route. */
+/** The key — the API's secret. ONE source of truth: the plugin's own
+ *  `api_key` setting (settings tab or the keygen mint write it). The old
+ *  `bienenstich.key` file beside this file is a read-only fallback for
+ *  pre-settings installs — never written anymore. No setting and no file:
+ *  the door is welded shut. The client presents it as ?key=<secret>. */
 function bienenstich_key(): string
 {
     static $key = null;
     if ($key === null) {
-        $file = __DIR__ . '/bienenstich.key';
-        $key = is_file($file) ? trim((string)file_get_contents($file)) : '';
+        $key = function_exists('\Plugins\setting')
+            ? (string)(\Plugins\setting('bienenstich', 'api_key') ?? '')
+            : '';
+        if ($key === '') {
+            $file = __DIR__ . '/bienenstich.key';
+            $key = is_file($file) ? trim((string)file_get_contents($file)) : '';
+        }
     }
     return $key;
 }
@@ -151,8 +158,9 @@ function bienenstich_mint(): string
 }
 
 /** Admin route: GET /bridge/plugin/bienenstich/keygen — the key mint. No key
- *  file yet: one is minted (bs_<version>_<random>) and written beside this
- *  file. A key already on disk: it is shown, never clobbered — rotating is
+ *  set: one is minted (bs_<version>_<random>) and stored in the plugin's own
+ *  api_key SETTING — the same slot the settings tab edits. A key already set
+ *  (setting or legacy key file): it is shown, never clobbered — rotating is
  *  ?rotate=1 and kills every consumer of the old key on purpose. Admin lid
  *  only: the core gates this door, the API key never guards its own mint. */
 function plugin_bienenstich_route_keygen(string $method, array $body): array
@@ -160,14 +168,11 @@ function plugin_bienenstich_route_keygen(string $method, array $body): array
     if ($method !== 'GET') {
         return ['_status' => 405, 'error' => 'The mint answers GET only.'];
     }
-    $file = __DIR__ . '/bienenstich.key';
     $rotate = ($_GET['rotate'] ?? '') === '1';
-    $key = is_file($file) ? trim((string)file_get_contents($file)) : '';
+    $key = bienenstich_key();
     if ($key === '' || $rotate) {
         $key = 'bs_' . bienenstich_version() . '_' . bienenstich_mint();
-        if (@file_put_contents($file, $key . "\n", LOCK_EX) === false) {
-            return ['_status' => 500, 'error' => 'The key file is not writable — drop the secret in by hand.'];
-        }
+        \Plugins\setSetting('bienenstich', 'api_key', $key);
     }
     return [
         'ok' => true,
