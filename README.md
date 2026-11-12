@@ -11,6 +11,9 @@ templates/     themes per the theme contract (theme.json + page.html/slide.html 
 plugins/       plugins per the p6 contract (plugin.json + plugin.php)
 ```
 
+Each plugin folder may carry its own `README.md` — the ware's own documentation
+beside its manifest and code, e.g. [`plugins/bienenstich/README.md`](plugins/bienenstich/README.md).
+
 ## How Schmarrn finds the wares (shipped)
 
 The CMS's Templates and Plugins tabs carry a "From the Vitrine" shelf that loads

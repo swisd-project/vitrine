@@ -24,34 +24,105 @@
 
 declare(strict_types=1);
 
-/** The key — the API's secret. ONE source of truth: the plugin's own
- *  `api_key` setting (settings tab or the keygen mint write it). The old
- *  `bienenstich.key` file beside this file is a read-only fallback for
- *  pre-settings installs — never written anymore. No setting and no file:
- *  the door is welded shut. The client presents it as ?key=<secret>. */
-function bienenstich_key(): string
+/** The ware's own KEY STORE — the plugin's own file beside this code
+ *  (keys.local.json; the plugin home is git-ignored, the secret never rides
+ *  a commit). Shape: {master, epoch, keys:[rows]}. The master is the admin's
+ *  own root secret: it is never rendered, never accepted as a request key,
+ *  only ever COMPARED (as the HMAC input that derives the access keys).
+ *  JSON, not a PHP include: an included file is served STALE by opcache for
+ *  a couple of seconds — a key store that lies about a fresh key is a lie
+ *  the API would answer with. */
+function bienenstich_store_file(): string
 {
-    static $key = null;
-    if ($key === null) {
-        $key = function_exists('\Plugins\setting')
-            ? (string)(\Plugins\setting('bienenstich', 'api_key') ?? '')
-            : '';
-        if ($key === '') {
-            $file = __DIR__ . '/bienenstich.key';
-            $key = is_file($file) ? trim((string)file_get_contents($file)) : '';
-        }
-    }
-    return $key;
+    return __DIR__ . '/keys.local.json';
 }
 
-/** The door: every route passes here first. No key on disk, no key given,
- *  or a wrong key — the answer is one plain line and nothing else. Exits
- *  before the core's JSON writer: the bots get text, not a contract. */
+/** The stored keys, lid-cleaned. */
+function bienenstich_store(): array
+{
+    $file = bienenstich_store_file();
+    try {
+        $raw = is_file($file) ? json_decode((string)file_get_contents($file), true) : null;
+        $all = is_array($raw) ? $raw : [];
+    } catch (\Throwable) {
+        $all = [];
+    }
+    $keys = [];
+    foreach ((array)($all['keys'] ?? []) as $row) {
+        if (is_array($row) && is_string($row['label'] ?? null) && is_string($row['nonce'] ?? null)) {
+            $keys[] = [
+                'label' => mb_substr((string)$row['label'], 0, 60),
+                'nonce' => (string)$row['nonce'],
+                'epoch' => (int)($row['epoch'] ?? 0),
+                'createdAt' => (int)($row['createdAt'] ?? 0),
+                'revoked' => ($row['revoked'] ?? false) === true,
+            ];
+        }
+    }
+    return [
+        'master' => is_string($all['master'] ?? null) ? (string)$all['master'] : '',
+        'epoch' => (int)($all['epoch'] ?? 0),
+        'keys' => $keys,
+    ];
+}
+
+/** Write the key store (LOCK_EX — one writer at a time). */
+function bienenstich_store_save(array $store): void
+{
+    $json = json_encode($store, JSON_UNESCAPED_SLASHES);
+    if ($json === false || @file_put_contents(bienenstich_store_file(), $json, LOCK_EX) === false) {
+        \Router\refuse(500, 'The key store will not write — the plugin folder is read-only.');
+    }
+}
+
+/** The derivation: an access key = bs_<version>_<32 alphanumerics>, HMAC'd
+ *  from the master and the row's nonce. The master never appears in it. */
+function bienenstich_derive(string $master, string $label, string $nonce): string
+{
+    $alnum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $len = mb_strlen($alnum);
+    $hash = hash_hmac('sha512', $master, $label . '|' . $nonce, true);
+    $out = '';
+    $i = 0;
+    // Rejection sampling: bytes past 62*4 are dropped, so every character is
+    // equally likely — a biased key is a weaker key.
+    while (mb_strlen($out) < 32) {
+        if ($i >= strlen($hash)) {
+            $hash = hash_hmac('sha512', $master, $label . '|' . $nonce . '|' . $i, true);
+            $i = 0;
+        }
+        $byte = ord($hash[$i]);
+        $i++;
+        if ($byte >= $len * 4) {
+            continue;
+        }
+        $out .= $alnum[$byte % $len];
+    }
+    return 'bs_' . bienenstich_version() . '_' . $out;
+}
+
+/** The door: every route passes here first. The key is checked against the
+ *  ACCESS KEYS the admin issued from their own master secret — the master
+ *  itself never opens this door. Without a valid access key the answer is
+ *  one plain line and nothing else. Exits before the core's JSON writer: the
+ *  bots get text, not a contract. */
 function bienenstich_gate(): void
 {
-    $key = bienenstich_key();
     $given = is_string($_GET['key'] ?? null) ? (string)$_GET['key'] : '';
-    if ($key === '' || !hash_equals($key, $given)) {
+    $store = bienenstich_store();
+    $ok = false;
+    if ($given !== '' && $store['master'] !== '') {
+        foreach ($store['keys'] as $row) {
+            if ($row['revoked'] || $row['epoch'] !== $store['epoch']) {
+                continue; // revoked, or minted under a master that has been renewed since
+            }
+            if (hash_equals(bienenstich_derive($store['master'], $row['label'], $row['nonce']), $given)) {
+                $ok = true;
+                break;
+            }
+        }
+    }
+    if (!$ok) {
         if (!headers_sent()) {
             http_response_code(403);
             header('Content-Type: text/plain; charset=utf-8');
@@ -59,6 +130,183 @@ function bienenstich_gate(): void
         echo 'Bakery closed.';
         exit;
     }
+}
+
+/** The ware's PANEL (admin route, the plugin's own admin surface): the
+ *  descriptor the dashboard renders — status, actions, the access-key list —
+ *  plus the actions themselves. The core knows nothing of keys; it only
+ *  carries what this ware says. */
+function plugin_bienenstich_route_keys(string $method, array $body): array
+{
+    if ($method === 'POST') {
+        $action = is_string($body['action'] ?? null) ? (string)$body['action'] : '';
+        $id = is_string($body['id'] ?? null) ? trim((string)$body['id']) : '';
+        $value = is_string($body['value'] ?? null) ? (string)$body['value'] : '';
+        $show = null;
+        $store = bienenstich_store();
+        if ($action === 'master' || $action === 'input') {
+            // A new master invalidates EVERY access key: the derivation
+            // changes under them. The master is never echoed back.
+            $master = trim($value);
+            if (mb_strlen($master) < 12) {
+                return ['_status' => 400, 'error' => 'That master key is too short — 12 characters or more.'];
+            }
+            $store['master'] = $master;
+            $store['epoch']++;
+            bienenstich_store_save($store);
+        } elseif ($action === 'generate') {
+            $alnum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            $master = '';
+            for ($i = 0; $i < 40; $i++) {
+                $master .= $alnum[random_int(0, mb_strlen($alnum) - 1)];
+            }
+            $store['master'] = $master;
+            $store['epoch']++;
+            bienenstich_store_save($store);
+        } elseif ($action === 'issue') {
+            $label = trim($value);
+            if ($label === '' || mb_strlen($label) > 60) {
+                return ['_status' => 400, 'error' => 'That access key needs a label — one line, no secrets.'];
+            }
+            if ($store['master'] === '') {
+                return ['_status' => 409, 'error' => 'No master key yet — set one before access keys.'];
+            }
+            foreach ($store['keys'] as $row) {
+                if (strcasecmp($row['label'], $label) === 0) {
+                    return ['_status' => 409, 'error' => "That label already carries a key — renew it instead: {$label}"];
+                }
+            }
+            $nonce = bin2hex(random_bytes(8));
+            $store['keys'][] = [
+                'label' => $label,
+                'nonce' => $nonce,
+                'epoch' => $store['epoch'],
+                'createdAt' => time(),
+                'revoked' => false,
+            ];
+            bienenstich_store_save($store);
+            $show = [
+                'label' => "New access key for “{$label}” — copy it now, it is never shown again.",
+                'value' => bienenstich_derive($store['master'], $label, $nonce),
+            ];
+        } elseif ($action === 'renew' || $action === 'restore') {
+            if ($store['master'] === '') {
+                return ['_status' => 409, 'error' => 'No master key yet — set one before access keys.'];
+            }
+            $found = false;
+            foreach ($store['keys'] as $i => $row) {
+                if (strcasecmp($row['label'], $id) === 0) {
+                    $nonce = bin2hex(random_bytes(8));
+                    $store['keys'][$i]['nonce'] = $nonce;
+                    $store['keys'][$i]['epoch'] = $store['epoch'];
+                    $store['keys'][$i]['createdAt'] = time();
+                    $store['keys'][$i]['revoked'] = false;
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                return ['_status' => 404, 'error' => 'No access key wears that label.'];
+            }
+            bienenstich_store_save($store);
+            $show = [
+                'label' => "Renewed access key for “{$id}” — copy it now, it is never shown again.",
+                'value' => bienenstich_derive($store['master'], $id, $nonce),
+            ];
+        } elseif ($action === 'revoke' || $action === 'delete') {
+            $kept = [];
+            $found = false;
+            foreach ($store['keys'] as $row) {
+                if (strcasecmp($row['label'], $id) === 0) {
+                    $found = true;
+                    if ($action === 'revoke') {
+                        $row['revoked'] = true; // the label stays, the key stops working
+                        $kept[] = $row;
+                    }
+                    continue; // delete: the label goes with it
+                }
+                $kept[] = $row;
+            }
+            if (!$found) {
+                return ['_status' => 404, 'error' => 'No access key wears that label.'];
+            }
+            $store['keys'] = $kept;
+            bienenstich_store_save($store);
+        } else {
+            return ['_status' => 400, 'error' => 'That move is not on the menu.'];
+        }
+        $panel = bienenstich_panel();
+        if ($show !== null) {
+            $panel['show'] = $show;
+        }
+        return $panel;
+    }
+    if ($method !== 'GET') {
+        return ['_status' => 405, 'error' => 'The panel answers GET and POST only.'];
+    }
+    return bienenstich_panel();
+}
+
+/** The panel descriptor — the ware's own words for its own state. */
+function bienenstich_panel(): array
+{
+    $store = bienenstich_store();
+    $rows = [];
+    foreach ($store['keys'] as $row) {
+        $state = $row['revoked'] ? 'revoked' : ($row['epoch'] === $store['epoch'] ? 'active' : 'dead');
+        $rows[] = [
+            'id' => $row['label'],
+            'cells' => [
+                'label' => $row['label'],
+                'state' => $state,
+                'created' => $row['createdAt'] > 0
+                    ? gmdate('Y-m-d H:i', $row['createdAt']) . ' UTC'
+                    : '—',
+            ],
+            'actions' => [
+                ['id' => 'renew', 'label' => 'renew'],
+                $row['revoked']
+                    ? ['id' => 'restore', 'label' => 'restore']
+                    : ['id' => 'revoke', 'label' => 'revoke'],
+                ['id' => 'delete', 'label' => 'delete'],
+            ],
+        ];
+    }
+    return [
+        'title' => 'Access Keys',
+        'note' => 'Your own master secret is never shown and never works as a ?key= — only access keys do. '
+            . 'Renewing the master invalidates every access key at once.',
+        'status' => [
+            'label' => 'Master key',
+            'value' => $store['master'] !== '' ? 'set' : 'not set',
+        ],
+        'actions' => [
+            ['id' => 'generate', 'label' => 'Generate'],
+            [
+                'id' => 'input',
+                'label' => 'input',
+                'modal' => [
+                    'label' => 'Master key',
+                    'type' => 'password',
+                    'placeholder' => '12 characters or more',
+                ],
+            ],
+            ['id' => 'issue', 'label' => '+ Access key', 'modal' => [
+                'label' => 'Label',
+                'type' => 'text',
+                'placeholder' => 'e.g. App A, Staging',
+            ]],
+        ],
+        'list' => [
+            'label' => 'Access Keys',
+            'columns' => [
+                ['key' => 'label', 'label' => 'Label'],
+                ['key' => 'state', 'label' => 'State'],
+                ['key' => 'created', 'label' => 'Created'],
+            ],
+            'rows' => $rows,
+        ],
+    ];
 }
 
 /** The CORS door: the API answers any origin — a plain GET carries no custom
@@ -143,43 +391,6 @@ function bienenstich_excerpt(string $raw, string $needle): string
         }
     }
     return '';
-}
-
-/** The mint: a random alphanumeric body for a key — random_int, not rand:
- *  a secret forged from a predictable source is not a secret. */
-function bienenstich_mint(): string
-{
-    $alnum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    $out = '';
-    for ($i = 0; $i < 32; $i++) {
-        $out .= $alnum[random_int(0, mb_strlen($alnum) - 1)];
-    }
-    return $out;
-}
-
-/** Admin route: GET /bridge/plugin/bienenstich/keygen — the key mint. No key
- *  set: one is minted (bs_<version>_<random>) and stored in the plugin's own
- *  api_key SETTING — the same slot the settings tab edits. A key already set
- *  (setting or legacy key file): it is shown, never clobbered — rotating is
- *  ?rotate=1 and kills every consumer of the old key on purpose. Admin lid
- *  only: the core gates this door, the API key never guards its own mint. */
-function plugin_bienenstich_route_keygen(string $method, array $body): array
-{
-    if ($method !== 'GET') {
-        return ['_status' => 405, 'error' => 'The mint answers GET only.'];
-    }
-    $rotate = ($_GET['rotate'] ?? '') === '1';
-    $key = bienenstich_key();
-    if ($key === '' || $rotate) {
-        $key = 'bs_' . bienenstich_version() . '_' . bienenstich_mint();
-        \Plugins\setSetting('bienenstich', 'api_key', $key);
-    }
-    return [
-        'ok' => true,
-        'key' => $key,
-        'rotated' => $rotate,
-        'usage' => '/bridge/plugin/bienenstich/content?key=' . $key,
-    ];
 }
 
 /** Public route: GET /bridge/plugin/bienenstich/content — the whole published
