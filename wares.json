@@ -3,6 +3,15 @@
     "wares": [
         {
             "kind": "plugin",
+            "name": "mermaid",
+            "title": "Mermaid",
+            "version": "0.1.0",
+            "description": "Diagrams from the md: a ```mermaid fence carries the diagram source; installed and enabled, the serve-time filter swaps the fence for a rendered diagram (mermaid renders it in the browser — no server, no build). An empty or malformed fence stays visible in the md: degrades, never dead.",
+            "requiresSchmarrn": ">=1.2.0",
+            "path": "plugins/mermaid"
+        },
+        {
+            "kind": "plugin",
             "name": "stop-motion",
             "title": "Stop Motion",
             "version": "0.2.2",
@@ -44,7 +53,7 @@
             "kind": "plugin",
             "name": "bienenstich",
             "title": "Bienenstich (API)",
-            "version": "0.2.6",
+            "version": "0.2.7",
             "documentation": "BIENENSTICH — the API surface. Three public routes: content (the whole published site as JSON; ?body=0 for the light index, ?type=<type> to narrow), search (?q= needle over PUBLISHED markdown only), status (heartbeat). All sit behind the plugin's own Access Keys panel: the admin holds their OWN master secret (typed in the 'input' modal or minted by 'Generate' — never shown again, never usable as ?key=, only ever compared) and issues LABELLED access keys from it. An access key is shown exactly ONCE, right after it is minted — copy it then; it never appears again. Each key can be renewed under the same label (the old key dies at once), revoked (the label stays, the key stops working), or deleted. Renewing the MASTER invalidates every access key at once. Consumers present ?key=<access key>; without a valid one every route answers exactly 'Bakery closed.' (HTTP 403, plain text) and nothing else — bots get no contract, no JSON, no crumbs. Read-only by law: never writes, never leaks a draft. Setup: install → enable → Plugins tab → Bienenstich → settings tab → set a master → + Access key → copy the key → hand the ?key= URLs to your consumers. Until a key exists the API is closed — that is the safe default.",
             "description": "The CMS's API surface as a ware: one GET hands a headless consumer the whole published site as JSON — the site face plus every page with title, slug, url, tags and the rendered body (body=0 for the light index). Plus a public needle (search) and a heartbeat (status). Read-only by law: never writes, never leaks a draft, answers the same to every hand. Every public route sits behind the plugin's own Access Keys panel: the admin keeps their own master secret (never shown, never usable as ?key=) and issues labelled access keys from it — consumers present ?key=<access key>; without a valid one the API answers only 'Bakery closed.'",
             "requiresSchmarrn": ">=1.0.0",

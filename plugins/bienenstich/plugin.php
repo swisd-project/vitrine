@@ -24,28 +24,60 @@
 
 declare(strict_types=1);
 
-/** The ware's own KEY STORE — the plugin's own file beside this code
- *  (keys.local.json; the plugin home is git-ignored, the secret never rides
- *  a commit). Shape: {master, epoch, keys:[rows]}. The master is the admin's
- *  own root secret: it is never rendered, never accepted as a request key,
- *  only ever COMPARED (as the HMAC input that derives the access keys).
- *  JSON, not a PHP include: an included file is served STALE by opcache for
- *  a couple of seconds — a key store that lies about a fresh key is a lie
- *  the API would answer with. */
-function bienenstich_store_file(): string
+/** The ware's KEY STORE — the house VAULT (the core's own, bridge/vault.php):
+ *  the master and the access-key rows rest SEALED under one name, encrypted
+ *  at rest (libsodium), the vault's key in a 0600 keyfile. Two laws make this
+ *  the only sane home: the plugin folder is RENAMED AWAY on every upgrade
+ *  (the install's swap), so a store inside it dies with the next shelf ride —
+ *  and a secret in a plaintext file is a secret waiting for a backup. Shape:
+ *  {master, epoch, keys:[rows]}. The master is the admin's own root secret:
+ *  never rendered, never accepted as a request key, only ever COMPARED (as
+ *  the HMAC input that derives the access keys). */
+function bienenstich_vault_name(): string
+{
+    return 'bienenstich.keys';
+}
+
+/** The legacy plaintext store (0.2.6 and older) — read once, then wiped. */
+function bienenstich_legacy_file(): string
 {
     return __DIR__ . '/keys.local.json';
+}
+
+/** Does the old plaintext store still stand? */
+function bienenstich_legacy_exists(): bool
+{
+    return is_file(bienenstich_legacy_file());
+}
+
+/** The old plaintext store, read once on the migration road. */
+function bienenstich_legacy_read(): ?array
+{
+    try {
+        $raw = json_decode((string)file_get_contents(bienenstich_legacy_file()), true);
+    } catch (\Throwable) {
+        return null;
+    }
+    return is_array($raw) ? $raw : null;
 }
 
 /** The stored keys, lid-cleaned. */
 function bienenstich_store(): array
 {
-    $file = bienenstich_store_file();
-    try {
-        $raw = is_file($file) ? json_decode((string)file_get_contents($file), true) : null;
-        $all = is_array($raw) ? $raw : [];
-    } catch (\Throwable) {
-        $all = [];
+    $raw = function_exists('\Vault\open') ? \Vault\open(bienenstich_vault_name()) : null;
+    $all = [];
+    if (is_string($raw) && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        $all = is_array($decoded) ? $decoded : [];
+    } elseif (bienenstich_legacy_exists()) {
+        // One-way migration: the old plaintext store is sealed into the vault
+        // and then GONE — a secret must not lie around after the fix.
+        $legacy = bienenstich_legacy_read();
+        if ($legacy !== null) {
+            \Vault\seal(bienenstich_vault_name(), (string)json_encode($legacy, JSON_UNESCAPED_SLASHES));
+            @unlink(bienenstich_legacy_file());
+            $all = $legacy;
+        }
     }
     $keys = [];
     foreach ((array)($all['keys'] ?? []) as $row) {
@@ -66,13 +98,37 @@ function bienenstich_store(): array
     ];
 }
 
-/** Write the key store (LOCK_EX — one writer at a time). */
+
+
+/** Write the key store — sealed into the house vault, never plain on disk. */
 function bienenstich_store_save(array $store): void
 {
-    $json = json_encode($store, JSON_UNESCAPED_SLASHES);
-    if ($json === false || @file_put_contents(bienenstich_store_file(), $json, LOCK_EX) === false) {
-        \Router\refuse(500, 'The key store will not write — the plugin folder is read-only.');
+    if (!function_exists('\Vault\seal')) {
+        // An older core (pre-vault) carries no vault: refuse honestly instead
+        // of fataling the route — a ware must never kill a host's day.
+        \Router\refuse(500, 'This core carries no vault — update Schmarrn before minting keys.');
     }
+    $json = json_encode($store, JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        \Router\refuse(500, 'The key store would not bake — its shape is broken.');
+    }
+    \Vault\seal(bienenstich_vault_name(), $json);
+}
+
+/** The ware's own version — read from the manifest beside this file, so the
+ *  code can never contradict the shelf (one source of truth, no twin). */
+function bienenstich_version(): string
+{
+    static $version = null;
+    if ($version === null) {
+        $manifest = is_file(__DIR__ . '/plugin.json')
+            ? json_decode((string)file_get_contents(__DIR__ . '/plugin.json'), true)
+            : null;
+        $version = is_array($manifest) && is_string($manifest['version'] ?? null)
+            ? $manifest['version']
+            : '0.0.0';
+    }
+    return $version;
 }
 
 /** The derivation: an access key = bs_<version>_<32 alphanumerics>, HMAC'd
@@ -130,6 +186,79 @@ function bienenstich_gate(): void
         echo 'Bakery closed.';
         exit;
     }
+}
+
+/** The panel descriptor — the ware's own words for its own state. */
+function bienenstich_panel(): array
+{
+    $store = bienenstich_store();
+    // An older core (pre-vault) has no vault at all: say so plainly instead
+    // of showing an empty shelf that reads like "no master set".
+    $hasVault = function_exists('\Vault\open');
+    // The vault holds the envelope but will not open it: the vault key is
+    // gone or the envelope is damaged. The house says so out loud — a
+    // silently dark shelf would look like "no master set".
+    $sealed = $hasVault && in_array(bienenstich_vault_name(), \Vault\holds(), true);
+    $dark = $sealed && $store['master'] === '' && $store['keys'] === [];
+    $rows = [];
+    foreach ($store['keys'] as $row) {
+        $state = $row['revoked'] ? 'revoked' : ($row['epoch'] === $store['epoch'] ? 'active' : 'dead');
+        $rows[] = [
+            'id' => $row['label'],
+            'cells' => [
+                'label' => $row['label'],
+                'state' => $state,
+                'created' => $row['createdAt'] > 0
+                    ? gmdate('Y-m-d H:i', $row['createdAt']) . ' UTC'
+                    : '—',
+            ],
+            'actions' => [
+                ['id' => 'renew', 'label' => 'renew'],
+                $row['revoked']
+                    ? ['id' => 'restore', 'label' => 'restore']
+                    : ['id' => 'revoke', 'label' => 'revoke'],
+                ['id' => 'delete', 'label' => 'delete'],
+            ],
+        ];
+    }
+    return [
+        'title' => 'Access Keys',
+        'note' => 'Your own master secret is never shown and never works as a ?key= — only access keys do. '
+            . 'Renewing the master invalidates every access key at once. The store rests sealed in the house vault.'
+            . ($dark ? ' WARNING: the sealed store will not open — the vault key is missing or the envelope is damaged. Set a master again.' : ''),
+        'status' => [
+            'label' => 'Master key',
+            'value' => $hasVault
+                ? ($store['master'] !== '' ? 'set' : 'not set')
+                : 'core has no vault',
+        ],
+        'actions' => [
+            ['id' => 'generate', 'label' => 'Generate'],
+            [
+                'id' => 'input',
+                'label' => 'input',
+                'modal' => [
+                    'label' => 'Master key',
+                    'type' => 'password',
+                    'placeholder' => '12 characters or more',
+                ],
+            ],
+            ['id' => 'issue', 'label' => '+ Access key', 'modal' => [
+                'label' => 'Label',
+                'type' => 'text',
+                'placeholder' => 'e.g. App A, Staging',
+            ]],
+        ],
+        'list' => [
+            'label' => 'Access Keys',
+            'columns' => [
+                ['key' => 'label', 'label' => 'Label'],
+                ['key' => 'state', 'label' => 'State'],
+                ['key' => 'created', 'label' => 'Created'],
+            ],
+            'rows' => $rows,
+        ],
+    ];
 }
 
 /** The ware's PANEL (admin route, the plugin's own admin surface): the
@@ -247,67 +376,6 @@ function plugin_bienenstich_route_keys(string $method, array $body): array
     return bienenstich_panel();
 }
 
-/** The panel descriptor — the ware's own words for its own state. */
-function bienenstich_panel(): array
-{
-    $store = bienenstich_store();
-    $rows = [];
-    foreach ($store['keys'] as $row) {
-        $state = $row['revoked'] ? 'revoked' : ($row['epoch'] === $store['epoch'] ? 'active' : 'dead');
-        $rows[] = [
-            'id' => $row['label'],
-            'cells' => [
-                'label' => $row['label'],
-                'state' => $state,
-                'created' => $row['createdAt'] > 0
-                    ? gmdate('Y-m-d H:i', $row['createdAt']) . ' UTC'
-                    : '—',
-            ],
-            'actions' => [
-                ['id' => 'renew', 'label' => 'renew'],
-                $row['revoked']
-                    ? ['id' => 'restore', 'label' => 'restore']
-                    : ['id' => 'revoke', 'label' => 'revoke'],
-                ['id' => 'delete', 'label' => 'delete'],
-            ],
-        ];
-    }
-    return [
-        'title' => 'Access Keys',
-        'note' => 'Your own master secret is never shown and never works as a ?key= — only access keys do. '
-            . 'Renewing the master invalidates every access key at once.',
-        'status' => [
-            'label' => 'Master key',
-            'value' => $store['master'] !== '' ? 'set' : 'not set',
-        ],
-        'actions' => [
-            ['id' => 'generate', 'label' => 'Generate'],
-            [
-                'id' => 'input',
-                'label' => 'input',
-                'modal' => [
-                    'label' => 'Master key',
-                    'type' => 'password',
-                    'placeholder' => '12 characters or more',
-                ],
-            ],
-            ['id' => 'issue', 'label' => '+ Access key', 'modal' => [
-                'label' => 'Label',
-                'type' => 'text',
-                'placeholder' => 'e.g. App A, Staging',
-            ]],
-        ],
-        'list' => [
-            'label' => 'Access Keys',
-            'columns' => [
-                ['key' => 'label', 'label' => 'Label'],
-                ['key' => 'state', 'label' => 'State'],
-                ['key' => 'created', 'label' => 'Created'],
-            ],
-            'rows' => $rows,
-        ],
-    ];
-}
 
 /** The CORS door: the API answers any origin — a plain GET carries no custom
  *  headers and needs no preflight, and the content it serves is public
@@ -319,21 +387,6 @@ function bienenstich_cors(): void
     }
 }
 
-/** The ware's own version — read from the manifest beside this file, so the
- *  code can never contradict the shelf (one source of truth, no twin). */
-function bienenstich_version(): string
-{
-    static $version = null;
-    if ($version === null) {
-        $manifest = is_file(__DIR__ . '/plugin.json')
-            ? json_decode((string)file_get_contents(__DIR__ . '/plugin.json'), true)
-            : null;
-        $version = is_array($manifest) && is_string($manifest['version'] ?? null)
-            ? $manifest['version']
-            : '0.0.0';
-    }
-    return $version;
-}
 
 /** The published pages — type, slug, updatedAt, tags. No title (a title is a
  *  read of the md) and NO drafts: the API is a public face, so a draft never
