@@ -1,6 +1,6 @@
 # Bienenstich (API)
 
-Version **0.2.6**. The CMS's API surface as a ware. The core answers one page at
+Version **0.2.7**. The CMS's API surface as a ware. The core answers one page at
 a time (`/bridge/public/<type>/<slug>`); a headless consumer wants the whole
 honey jar in one dip. Read-only by law: it never writes, never renders Markdown
 (the cache speaks), never leaks a draft — not even to an editor's own session,
@@ -37,10 +37,26 @@ live in the plugin.
 
 ## The key store
 
-`plugins/bienenstich/keys.local.json`, beside the code. The plugin home is
-git-ignored — the secret never rides a commit. JSON, not a PHP include: an
-included file is served stale by opcache for a couple of seconds, and a key
-store that lies about a fresh key is a lie the API would answer with.
+The master and the access-key rows rest **SEALED in the house vault** — the
+core's own service (`bridge/vault.php`) — under the name `bienenstich.keys`,
+encrypted at rest (libsodium secretbox), the vault's key in a 0600 keyfile
+beside it. Nothing secret lies in the plugin folder anymore.
+
+Why the vault, plainly: the install **swaps a plugin home on every upgrade** —
+the whole folder is renamed away, the new ware renamed in, the old one deleted.
+A store inside the plugin folder would die with each upgrade: every access key
+would vanish and the API would go silent. The vault lives in `bridge/config/`,
+which no swap touches.
+
+- A 0.2.6-and-older plaintext store (`keys.local.json`) is migrated **once, on
+  first read**: sealed into the vault, the plaintext file wiped immediately. A
+  legacy install keeps working after the migration — the keys do not reset.
+- Lost vault key (`bridge/config/vault.key` lost, or the envelope damaged): the
+  store will not open — the panel says so out loud, and the admin sets a master
+  again (which invalidates the old keys).
+- On a core that carries no vault yet: the panel says "core has no vault", the
+  gate fails closed (`Bakery closed.`), and minting refuses with an
+  update-the-core message.
 
 Shape `{master, epoch, keys: [rows]}`; row `{label, nonce, epoch, createdAt,
 revoked}`.
