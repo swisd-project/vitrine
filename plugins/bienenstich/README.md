@@ -116,4 +116,15 @@ API. Set a master and issue a labelled access key instead.
 
 ---
 
+## Test-battery contract note (2026-11-13)
+
+The Schmarrn base's battery (tests/battery-bienenstich.php) seeds the rig with
+the OLD static api_key setting and is now 16/30 RED (403 "Bakery closed").
+This ware's key model moved to the derived key store (master + nonce keys,
+epochs, revocation) on 2026-11-13 — the base's rig must be updated to mint a
+key through this ware's own functions before the battery answers green again.
+Parked by user order until the ware settles.
+
+---
+
 SPDX-License-Identifier: MPL-2.0
