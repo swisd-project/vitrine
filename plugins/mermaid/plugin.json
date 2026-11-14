@@ -1,0 +1,19 @@
+{
+  "name": "mermaid",
+  "title": "Mermaid",
+  "version": "0.1.0",
+  "description": "Diagrams from the md, the renderer rides with the ware: the author places the plugin's tag {{mermaid:<name>}} into a page's md, and the diagram's data lives in its own md file in the page's mermaid/ folder (created by the plugin on the first save). Installed and enabled, the serve-time filter resolves every tag against that tray and mermaid itself — bundled in the ware's assets, no CDN — renders the diagram in the browser. A tag whose data file is missing degrades to a visible notice. The editor-block insert drops the tag into the canvas; the diagram route (save/list/delete) is the tray's door.",
+  "capabilities": {
+    "contentFilters": ["mermaid_page"],
+    "editorBlocks": [
+      {
+        "name": "mermaid_diagram",
+        "label": "Mermaid Diagram",
+        "template": "{{mermaid:diagram}}"
+      }
+    ],
+    "routes": [
+      { "path": "diagram", "auth": "user" }
+    ]
+  }
+}

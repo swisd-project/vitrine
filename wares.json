@@ -6,7 +6,7 @@
             "name": "mermaid",
             "title": "Mermaid",
             "version": "0.1.0",
-            "description": "Diagrams from the md: a ```mermaid fence carries the diagram source; installed and enabled, the serve-time filter swaps the fence for a rendered diagram (mermaid renders it in the browser — no server, no build). An empty or malformed fence stays visible in the md: degrades, never dead.",
+            "description": "Diagrams from the md, the renderer rides with the ware: the author places the plugin's tag {{mermaid:<name>}} into a page's md, and the diagram's data lives in its own md file in the page's mermaid/ folder (created by the plugin on the first save). Installed and enabled, the serve-time filter resolves every tag against that tray and mermaid itself — bundled in the ware's assets, no CDN — renders the diagram in the browser. A tag whose data file is missing degrades to a visible notice.",
             "requiresSchmarrn": ">=1.2.0",
             "path": "plugins/mermaid"
         },
