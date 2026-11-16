@@ -15,7 +15,8 @@ internet needed at view time — renders the diagram in the browser.
 2. The diagram's source — raw mermaid (`graph TD`, `sequenceDiagram`, …) — is
    stored in its own md file, one per diagram:
    `src/content/<type>/<slug>/mermaid/<name>.md`. The plugin creates the
-   `mermaid/` folder on the first save.
+   `mermaid/` folder on the first save. No subfolder per diagram — the flat
+   layout is deliberate and most-reliable.
 3. The tag is plain text in the md (mdms renders it untouched, e.g. inside a
    `<p>`); the filter swaps it at serve time.
 
@@ -36,8 +37,23 @@ diagram actually rendered:
 
 ```html
 <script src="/bridge/plugins/mermaid/assets/mermaid.min.js"></script>
-<script>mermaid.initialize({startOnLoad:false,securityLevel:"strict"});
-mermaid.run({querySelector:".mermaid"});</script>
+<script>
+(function () {
+  function fail(d, msg) { d.classList.add('mermaid-missing'); d.textContent = msg; }
+  if (typeof mermaid === 'undefined') {
+    document.querySelectorAll('.mermaid').forEach(function (d) {
+      fail(d, 'mermaid diagram could not be rendered (the renderer failed to load)');
+    });
+    return;
+  }
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
+  document.querySelectorAll('.mermaid').forEach(function (d) {
+    mermaid.run({ nodes: [d] }).catch(function () {
+      fail(d, 'mermaid diagram could not be rendered');
+    });
+  });
+})();
+</script>
 ```
 
 Rendering is entirely client-side, by mermaid.js; `securityLevel: "strict"`.
@@ -50,6 +66,21 @@ Rendering is entirely client-side, by mermaid.js; `securityLevel: "strict"`.
 spot the plugin home serves; a direct hit on the plugin home never executes).
 `mermaid.LICENSE` carries mermaid's MIT license text. No CDN, no internet at
 view time.
+
+## Error-tolerant
+
+Two fails degrade to a visible notice, never a dead page — additive beside the
+existing missing-data notice (kept):
+
+- Renderer failed to load — the vendored bundle 404s, corrupts, or its path
+  drifts, so `mermaid` is undefined → every `.mermaid` div shows
+  `mermaid diagram could not be rendered (the renderer failed to load)` instead
+  of a silent wall of raw source.
+- One bad diagram, not the batch — each diagram renders in its own
+  `mermaid.run({ nodes: [d] })`, wrapped in `.catch`; a malformed source
+  (`run()` rejects unless `suppressErrors` is set) no longer aborts the rest —
+  the bad one shows `mermaid diagram could not be rendered`, the others render.
+  Verified on a battery (two diagrams, one malformed → both divs present).
 
 ## The tray door (route)
 

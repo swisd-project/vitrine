@@ -80,11 +80,37 @@ function plugin_mermaid_page(array $ctx, string $html): string
         return $out; // only notices — no renderer, no bytes
     }
     // The renderer is the ware's own asset: a direct hit on the plugin home
-    // never executes (the whitelist forbids it), but assets/ is served.
-    return $out . "\n"
-        . '<script src="/bridge/plugins/mermaid/assets/mermaid.min.js"></script>'
-        . '<script>mermaid.initialize({startOnLoad:false,securityLevel:"strict"});'
-        . 'mermaid.run({querySelector:".mermaid"});</script>';
+    // never executes (the whitelist forbids it), but assets/ is served. The
+    // guard is the error-tolerant law — if the vendored bundle fails to load
+    // (404, corrupt, a path that drifted) mermaid is undefined, so every
+    // diagram degrades to a visible notice instead of a silent wall of raw
+    // source; and each diagram renders in its own run() so one malformed
+    // source (run rejects unless suppressErrors) can't abort the rest of the
+    // page.
+    $renderer = <<<'JS'
+<script src="/bridge/plugins/mermaid/assets/mermaid.min.js"></script>
+<script>
+(function () {
+  function fail(d, msg) {
+    d.classList.add('mermaid-missing');
+    d.textContent = msg;
+  }
+  if (typeof mermaid === 'undefined') {
+    document.querySelectorAll('.mermaid').forEach(function (d) {
+      fail(d, 'mermaid diagram could not be rendered (the renderer failed to load)');
+    });
+    return;
+  }
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
+  document.querySelectorAll('.mermaid').forEach(function (d) {
+    mermaid.run({ nodes: [d] }).catch(function () {
+      fail(d, 'mermaid diagram could not be rendered');
+    });
+  });
+})();
+</script>
+JS;
+    return $out . "\n" . $renderer;
 }
 
 /** POST body -> the tray's answer. Editor+CSRF by the core lid; handlers never re-check. */
