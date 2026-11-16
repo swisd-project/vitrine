@@ -4,7 +4,11 @@
  * 1. Relative path: plugins/mermaid/plugin.php
  * 2. Description: MERMAID — diagrams from the md, the renderer rides with
  *                 the ware. The author places the plugin's tag,
- *                 {{mermaid:<name>}}, into a page's md; the diagram's DATA
+ *                 {{mermaid_<name>}}, into a page's md (the underscore is the
+ *                 law: Schmarrn's md dialect reads a bare `:name` as a
+ *                 directive and eats it whole, so the colon form never
+ *                 survives to this filter — the tag must stay token-shaped);
+ *                 the diagram's DATA
  *                 lives in its own md file in the page's mermaid/ folder
  *                 (mermaid/<name>.md beside the page's index.md — the
  *                 folder is the plugin's tray, created on the first save).
@@ -29,8 +33,11 @@
 
 declare(strict_types=1);
 
-/** The tag as it rides the md: {{mermaid:<name>}} — name is the data file's stem. */
-const MERMAID_TAG = '/\{\{mermaid:([a-z0-9-]+)\}\}/';
+/** The tag as it rides the md: {{mermaid_<name>}} — name is the data file's stem.
+ *  The underscore is the law: Schmarrn's md dialect reads a bare ":name" as a
+ *  directive and swallows it whole, so the colon form never survives the
+ *  render to reach this filter. */
+const MERMAID_TAG = '/\{\{mermaid_([a-z0-9-]+)\}\}/';
 
 /** Identifiers: type, slug and diagram name share the house slug alphabet. */
 function mermaid_ident(string $value): bool
@@ -45,7 +52,7 @@ function mermaid_content_root(): string
 }
 
 /**
- * The serve-time contentFilter (p6 slice 2): resolve every {{mermaid:<name>}}
+ * The serve-time contentFilter (p6 slice 2): resolve every {{mermaid_<name>}}
  * tag against the page's mermaid/ tray and swap it for the diagram container;
  * the renderer rides once, at the end of the body, when the page carries one.
  *
@@ -162,5 +169,5 @@ function plugin_mermaid_route_diagram(string $method, array $body): array
     if (@file_put_contents($dir . '/' . $name . '.md', rtrim($source) . "\n") === false) {
         return ['_status' => 500, 'error' => 'The diagram md would not write.'];
     }
-    return ['ok' => true, 'name' => $name, 'tag' => '{{mermaid:' . $name . '}}'];
+    return ['ok' => true, 'name' => $name, 'tag' => '{{mermaid_' . $name . '}}'];
 }

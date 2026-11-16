@@ -1,16 +1,22 @@
 # Mermaid
 
-Version **0.1.0**. Diagrams from the md, the renderer rides with the ware. The
-author places the plugin's tag `{{mermaid:<name>}}` into a page's md; the
+Version **0.2.0**. Diagrams from the md, the renderer rides with the ware. The
+author places the plugin's tag `{{mermaid_<name>}}` into a page's md; the
 diagram's data lives in its own md file in the page's `mermaid/` folder.
 Installed and enabled, the serve-time content filter (`mermaid_page`) resolves
 every tag and mermaid itself — bundled in the ware's assets, no CDN, no
 internet needed at view time — renders the diagram in the browser.
 
+The underscore is the law: Schmarrn's md dialect (mdms + remark-directive) reads
+a bare `:name` as a directive and eats it, so the colon form `mermaid:foo` loses
+its name before the filter ever sees it. The underscore form stays whole and
+resolves. The colon form is dead as of 0.2.0 — a page still carrying
+`mermaid:foo` must change it to `{{mermaid_foo}}`.
+
 ## How a diagram is born
 
 1. The author inserts the editor block **"Mermaid Diagram"** (`mermaid_diagram`
-   in the canvas Add menu). It drops `{{mermaid:diagram}}` into the page's md;
+   in the canvas Add menu). It drops `{{mermaid_diagram}}` into the page's md;
    the author renames `diagram` to their own name.
 2. The diagram's source — raw mermaid (`graph TD`, `sequenceDiagram`, …) — is
    stored in its own md file, one per diagram:
@@ -23,7 +29,7 @@ internet needed at view time — renders the diagram in the browser.
 ## Tag resolution (serve-time)
 
 The `mermaid_page` content filter scans the rendered page for
-`{{mermaid:<name>}}` (name matches `[a-z0-9-]+`):
+`{{mermaid_<name>}}` (name matches `[a-z0-9-]+`):
 
 - Data file present and non-empty → the tag becomes
   `<div class="mermaid" data-mermaid="<name>" role="img" aria-label="mermaid diagram <name>">`
@@ -90,7 +96,7 @@ CSRF enforced by the core dispatch lid. One route, three actions via
 
 | Action | Body | Answer |
 |---|---|---|
-| `save` | `type`, `slug`, `name`, `source` | Creates the `mermaid/` folder if needed, writes `<name>.md` (source, 1 byte..100 kB, non-empty), answers `{ok, name, tag: "{{mermaid:<name>}}"}` — the tag to paste. |
+| `save` | `type`, `slug`, `name`, `source` | Creates the `mermaid/` folder if needed, writes `<name>.md` (source, 1 byte..100 kB, non-empty), answers `{ok, name, tag: "{{mermaid_<name>}}"}` — the tag to paste. |
 | `list` | `type`, `slug` | `{diagrams: [names]}` — the diagram names in the page's tray, sorted. |
 | `delete` | `type`, `slug`, `name` | Removes `<name>.md`; 404 when absent. |
 
