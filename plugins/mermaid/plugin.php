@@ -18,8 +18,18 @@
  *                 the source, and mermaid itself — bundled in the ware's
  *                 assets/ folder, served from /bridge/plugins/mermaid/
  *                 assets/mermaid.min.js, no CDN, no internet at view time
- *                 — renders it in the browser. The renderer rides once,
- *                 at the end of the body, only when the page carries a
+ *                 — renders it in the browser. Until it does, the source
+ *                 never shows: the div is born pending (the source hidden
+ *                 behind a spinner, the slot collapsed) and the dress dies
+ *                 the instant the SVG lands — a DOM-state law (:not(:has(svg)),
+ *                 not the renderer's promise, so a hung run() can never pin a
+ *                 spinner over a finished diagram). Failure drops the class
+ *                 too — a notice, never a blank. A preload link rides first
+ *                 in the body so the bundle's fetch starts while the page
+ *                 still parses. Each rendered diagram is dressed in a box
+ *                 with its own −/+ zoom pill — the scale is the diagram's,
+ *                 never the page's. The renderer rides once, at the end of
+ *                 the body, only when the page carries a
  *                 diagram. A tag whose data file is missing degrades to a
  *                 visible notice — never a dead page. The admin route
  *                 (diagram) is the tray's door: save/list/delete the md
@@ -76,7 +86,7 @@ function plugin_mermaid_page(array $ctx, string $html): string
         }
         $matched = true;
         $found = true;
-        return '<div class="mermaid" data-mermaid="' . htmlspecialchars($name, ENT_QUOTES) . '"'
+        return '<div class="mermaid sm-mermaid-pending" data-mermaid="' . htmlspecialchars($name, ENT_QUOTES) . '"'
             . ' role="img" aria-label="mermaid diagram ' . htmlspecialchars($name, ENT_QUOTES) . '">'
             . htmlspecialchars($source, ENT_QUOTES) . '</div>';
     }, $html);
@@ -95,29 +105,52 @@ function plugin_mermaid_page(array $ctx, string $html): string
     // source (run rejects unless suppressErrors) can't abort the rest of the
     // page.
     $renderer = <<<'JS'
+<style>
+/* the mermaid ware: the raw source never shows. The div is born pending — the
+   source is transparent AND collapsed (font-size:0) so it takes no room — and
+   a spinner holds the slot. THE UN-HIDE IS A DOM-STATE LAW, NOT A PROMISE:
+   :not(:has(svg)) means the pending dress dies the instant the SVG lands in
+   the div, whatever the renderer's promise does — a hung run() (the bundle
+   waits on animation frames) can no longer pin a spinner over a finished
+   diagram. The plugin owns the class, NOT mermaid's data-processed (mermaid
+   sets that BEFORE it renders). The fail path drops the class too — a notice,
+   never a blank, never a dead page. The spinner wears the theme's own accent
+   through var(--jam). */
+.mermaid.sm-mermaid-pending:not(:has(svg)) { color:transparent; font-size:0; line-height:0; }
+.mermaid.sm-mermaid-pending:not(:has(svg))::before {
+  content:''; display:block; width:2.2rem; height:2.2rem; margin:1.5rem auto;
+  border:3px solid rgba(95,86,74,.18); border-top-color:var(--jam,#d6006f);
+  border-radius:50%; animation:sm-mermaid-spin .8s linear infinite;
+}
+@keyframes sm-mermaid-spin { to { transform:rotate(360deg); } }
+/* the DIAGRAM zoom (user order 2026-11-16: the page-wide handle goes — this
+   one scopes to the diagram, only the diagram): the guard dresses each
+   rendered diagram in a box with its own −/+ pill; the scale rides a var ON
+   THE BOX (per diagram, never per page) and the canvas' width compensates,
+   so the drawing grows into the column instead of over it. The page's zoom
+   handle is the core's business; this one is the ware's. */
+.sm-mermaid-box { position:relative; }
+.sm-mermaid-box .mermaid { zoom:var(--sm-mermaid-zoom,1); width:calc(100% / var(--sm-mermaid-zoom,1)); }
+.sm-mermaid-zoom {
+  position:absolute; top:.35rem; right:.35rem; z-index:2; display:flex; align-items:center; gap:.05rem;
+  padding:.15rem; background:var(--batter,#fff); border:1px solid var(--line,#e4e8ec); border-radius:4px;
+  box-shadow:0 2px 8px rgba(95,86,74,.14);
+  font-family:'Noto Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; font-size:11px;
+}
+.sm-mermaid-zoom button { font:inherit; font-weight:700; color:var(--ink-soft,#59636e); background:none; border:none; padding:.15rem .4rem; cursor:pointer; border-radius:3px; }
+.sm-mermaid-zoom button:hover:not(:disabled) { background:var(--crust,#f6f7f9); color:var(--ink,#1f2328); }
+.sm-mermaid-zoom button:disabled { opacity:.35; cursor:not-allowed; }
+.sm-mermaid-zoom .sm-mermaid-zoom-val { min-width:2.9rem; text-align:center; color:var(--ink,#1f2328); font-variant-numeric:tabular-nums; }
+</style>
 <script src="/bridge/plugins/mermaid/assets/mermaid.min.js"></script>
-<script>
-(function () {
-  function fail(d, msg) {
-    d.classList.add('mermaid-missing');
-    d.textContent = msg;
-  }
-  if (typeof mermaid === 'undefined') {
-    document.querySelectorAll('.mermaid').forEach(function (d) {
-      fail(d, 'mermaid diagram could not be rendered (the renderer failed to load)');
-    });
-    return;
-  }
-  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
-  document.querySelectorAll('.mermaid').forEach(function (d) {
-    mermaid.run({ nodes: [d] }).catch(function () {
-      fail(d, 'mermaid diagram could not be rendered');
-    });
-  });
-})();
-</script>
+<script src="/bridge/plugins/mermaid/assets/guard.js"></script>
 JS;
-    return $out . "\n" . $renderer;
+    // The preload rides FIRST in the body — a link the browser meets at the top
+    // starts the multi-MB fetch while it still parses the page; the script at
+    // the end then finds the bytes already there. (The renderer block above
+    // rides last; only its <style> and <script> belong there.)
+    return '<link rel="preload" as="script" href="/bridge/plugins/mermaid/assets/mermaid.min.js">' . "\n"
+        . $out . "\n" . $renderer;
 }
 
 /** POST body -> the tray's answer. Editor+CSRF by the core lid; handlers never re-check. */

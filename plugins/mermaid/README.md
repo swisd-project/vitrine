@@ -1,6 +1,6 @@
 # Mermaid
 
-Version **0.2.0**. Diagrams from the md, the renderer rides with the ware. The
+Version **0.2.5**. Diagrams from the md, the renderer rides with the ware. The
 author places the plugin's tag `{{mermaid_<name>}}` into a page's md; the
 diagram's data lives in its own md file in the page's `mermaid/` folder.
 Installed and enabled, the serve-time content filter (`mermaid_page`) resolves
@@ -32,14 +32,27 @@ The `mermaid_page` content filter scans the rendered page for
 `{{mermaid_<name>}}` (name matches `[a-z0-9-]+`):
 
 - Data file present and non-empty → the tag becomes
-  `<div class="mermaid" data-mermaid="<name>" role="img" aria-label="mermaid diagram <name>">`
+  `<div class="mermaid sm-mermaid-pending" data-mermaid="<name>" role="img" aria-label="mermaid diagram <name>">`
   carrying the (HTML-escaped) source. mermaid reads it as text.
+- While `sm-mermaid-pending` holds: the source is transparent AND collapsed
+  (`font-size:0` — takes no room); a small spinner holds the slot. The raw
+  source never shows while the page loads. Since 0.2.2 the un-hide is a
+  DOM-state law, not a promise: `sm-mermaid-pending` carries `:not(:has(svg))`,
+  so it dies the instant the SVG lands in the div — a hung `run()` (the vendored
+  bundle waits on animation frames) can no longer pin a spinner over a finished
+  diagram. The fail path still drops the class (a notice, never a blank).
+- Why a plugin-owned class, not mermaid's `data-processed`: the vendored
+  mermaid sets `data-processed="true"` BEFORE it renders — a hide hooked there
+  would un-hide the source mid-render. The plugin controls its own class.
 - Data file missing or empty → a visible notice —
   `mermaid diagram "<name>" has no data file yet` — never a dead page.
 - No tag on the page → the page is untouched: no script, no bytes.
 
-The renderer rides **once**, at the end of the body, only when at least one
-diagram actually rendered:
+A `<link rel="preload" as="script">` for the vendored bundle rides FIRST in the
+body — the multi-MB fetch starts while the browser still parses the page,
+instead of when it reaches the script at the end. The renderer itself rides
+**once**, at the end of the body, only when at least one diagram actually
+rendered:
 
 ```html
 <script src="/bridge/plugins/mermaid/assets/mermaid.min.js"></script>
@@ -64,22 +77,60 @@ diagram actually rendered:
 
 Rendering is entirely client-side, by mermaid.js; `securityLevel: "strict"`.
 
+Once the renderer is up, the guard dresses each rendered diagram in a box
+(`sm-mermaid-box`) with its own `− / 100% / +` pill at the diagram's top-right.
+Scale steps: 100 / 125 / 150 / 200 / 250 / 300 %; clicking the percentage
+resets to 100 %. The scale rides a CSS var on the box — per diagram, never per
+page — and the diagram's width compensates, so the drawing grows into the
+column instead of overflowing it. The pill is guard-generated (no change to
+the tag or the div); works on the public page and in the editor's
+token-preview iframe alike; not persisted — a reading aid for the moment
+(exists because the core's page-wide zoom handle zooms everything; the ware
+owns a zoom that touches only the diagram).
+
+Since 0.2.4, when the preview is FRAMED (the editor's token-preview iframe),
+the guard also reports the content's height to the parent by
+`postMessage({ t: 'sm-preview-height', h: <scrollHeight> }, '*')` — a listening
+parent can size the frame to the diagram instead of clipping it into a
+scrolling box. It fires after a diagram lands (show), after a failure (the
+notice is sized too), and on every zoom turn (a zoom grows the drawing, the
+frame grows with it). Unframed pages do nothing — a plain page owns its own
+height. The report is fire-and-forget: if the parent never listens, the frame
+keeps its fallback height and nothing breaks. The why: the editor's preview
+iframe is a fixed-height sandboxed frame (`allow-scripts`, no same-origin), so
+postMessage is the only channel out — the ware reports, the parent sizes.
+
+Since 0.2.5 the guard is an external asset, not inline script. The editor's
+token-preview iframe is served under a CSP allowing origin scripts only
+(`script-src <origin>`, no `unsafe-inline`) — the 0.2.4 inline `<script>` block
+was silently blocked there, mermaid's `startOnLoad: true` default auto-rendered
+without the guard, and the preview showed the diagram but no pill, no pending
+dress, no height report. The public page (no CSP) worked — the bug read as
+"works in public, dead in /_". The guard now lives in
+`assets/guard.js`, beside the mermaid bundle, and the renderer block emits
+`<script src="/bridge/plugins/mermaid/assets/guard.js"></script>` — external
+origin scripts pass the cage's CSP, so the guard runs everywhere (public page,
+preview cage, any framed surface). No contract change: same class names, same
+steps, same height report.
+
 ## The renderer ships with the ware
 
 `assets/mermaid.min.js` — mermaid **v11.17.2**, self-contained, sets the global
 `mermaid` — is vendored in the plugin's `assets/` folder and served from
 `/bridge/plugins/mermaid/assets/mermaid.min.js` (the assets folder is the only
 spot the plugin home serves; a direct hit on the plugin home never executes).
+The guard ships as a second vendored asset, `assets/guard.js`, served beside it.
 `mermaid.LICENSE` carries mermaid's MIT license text. No CDN, no internet at
 view time.
 
 ## Error-tolerant
 
-Two fails degrade to a visible notice, never a dead page — additive beside the
-existing missing-data notice (kept):
+Two fails degrade to a visible notice, never a blank, never a dead page —
+additive beside the existing missing-data notice (kept):
 
 - Renderer failed to load — the vendored bundle 404s, corrupts, or its path
-  drifts, so `mermaid` is undefined → every `.mermaid` div shows
+  drifts, so `mermaid` is undefined → the pending class is dropped, every
+  `.mermaid` div shows
   `mermaid diagram could not be rendered (the renderer failed to load)` instead
   of a silent wall of raw source.
 - One bad diagram, not the batch — each diagram renders in its own
