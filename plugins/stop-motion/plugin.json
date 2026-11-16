@@ -1,9 +1,9 @@
 {
   "name": "stop-motion",
   "title": "Stop Motion",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "requires": ["drunken-monk"],
-  "description": "An animation block in the page's dedicated stop-motion/ folder: upload or delete frame files (any continuous-numbering, gaps tolerated, filenames only), set the fps, and the block plays them as a pure-CSS stop-motion. The canvas modal manages frames end to end; the serve-time filter decodes the ```stop-motion fence into stacked, CSS-only frames. Malformed fences stay visible in the md: degrades, never dead.",
+  "description": "An animation block in the page's dedicated stop-motion/ folder: upload or delete frame files (any continuous-numbering, gaps tolerated, filenames only), set the fps, and the block plays them as a pure-CSS stop-motion. The canvas modal manages frames end to end; the serve-time filter decodes the ````stop-motion fence (four ticks — the plugin-fence boundary; a three-tick fence is a code block, always) into stacked, CSS-only frames. BREAKING since 0.3.0: old three-tick stop-motion fences no longer decode — they stand as visible code; rewrite the opening line to four ticks. Malformed fences stay visible in the md: degrades, never dead.",
   "capabilities": {
     "contentFilters": ["stop_motion_page"],
     "editorBlocks": [
@@ -11,7 +11,7 @@
         "name": "stop_motion_frame",
         "label": "Stop Motion",
         "modal": "stop-motion",
-        "template": "```stop-motion\n{\"files\":[],\"dir\":\"stop-motion\",\"fps\":8}\n```"
+        "template": "````stop-motion\n{\"files\":[],\"dir\":\"stop-motion\",\"fps\":8}\n````"
       }
     ],
     "routes": [

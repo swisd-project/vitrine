@@ -4,8 +4,9 @@
  * 1. Relative path: plugins/drunken-monk/plugin.php
  * 2. Description: The first real Schmarrn plugin. DRUNKEN MONK = machine-generated
  *                 payloads that live plainly in the md, wrapped in a monk banner
- *                 inside a ```drunken-monk fenced code block. mdms renders the
- *                 fence untouched (<pre><code class="language-drunken-monk">)
+ *                 inside a ````drunken-monk fenced code block (four ticks —
+ *                 the plugin-fence boundary). mdms renders the fence untouched
+ *                 (<pre><code … data-sm-plugin-fence="drunken-monk">)
  *                 with the banner kept visible — an honest "not to be touched,
  *                 machine generated" notice in the editor. Installed AND enabled,
  *                 the serve-time p6 contentFilter (drunken_monk_page) decodes the
@@ -127,11 +128,11 @@ function drunken_monk_mint(array $envelope): string
         $sealed,
         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
     )), '+/', '-_'), '=');
-    return "```drunken-monk\n" . drunken_monk_banner($sealed) . "\n" . $payload . "\n```";
+    return "````drunken-monk\n" . drunken_monk_banner($sealed) . "\n" . $payload . "\n````";
 }
 
 /**
- * The serve-time contentFilter (p6 slice 2): decode every ```drunken-monk block
+ * The serve-time contentFilter (p6 slice 2): decode every ````drunken-monk block
  * and apply its envelope. Fence survives until decoded correctly — the notice
  * law. On success the block becomes provenance comment + the applied behaviour.
  *
@@ -139,7 +140,7 @@ function drunken_monk_mint(array $envelope): string
  */
 function plugin_drunken_monk_page(array $ctx, string $html): string
 {
-    $marker = '/<pre><code class="[^"]*language-drunken-monk[^"]*">(.*?)<\/code><\/pre>/s';
+    $marker = '/<pre><code[^>]*data-sm-plugin-fence="drunken-monk"[^>]*>(.*?)<\/code><\/pre>/s';
     return (string)preg_replace_callback($marker, function (array $m): string {
         $text = html_entity_decode($m[1], ENT_QUOTES);
         $lines = array_values(array_filter(array_map('trim', explode("\n", $text)), fn($l) => $l !== ''));
@@ -215,7 +216,7 @@ function plugin_drunken_monk_route_decode(string $method, array $body): array
         return ['_status' => 405, 'error' => 'The monk opens up by POST only.'];
     }
     $input = is_string($body['payload'] ?? null) ? $body['payload'] : '';
-    if (preg_match('/^\s*```/', $input) === 1) {
+    if (preg_match('/^\s*````/', $input) === 1) {
         // whole fence pasted — the payload is the last non-empty line
         $lines = array_values(array_filter(array_map('trim', explode("\n", $input)), fn($l) => $l !== ''));
         array_pop($lines); // closing fence

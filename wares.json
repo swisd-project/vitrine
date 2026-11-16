@@ -14,9 +14,9 @@
             "kind": "plugin",
             "name": "stop-motion",
             "title": "Stop Motion",
-            "version": "0.2.2",
+            "version": "0.3.0",
             "requires": ["drunken-monk"],
-            "description": "A ```stop-motion fence in the md carries a numbered image series (0..n) + fps; installed and enabled, the serve-time filter decodes it into stacked frames and animates them — pure CSS steps-by-delay, no JS. Admin routes mint fences and re-time the speed (mint, speed). Malformed fences stay visible in the md: degrades, never dead.",
+            "description": "A ````stop-motion fence in the md (four ticks — the plugin-fence boundary; a three-tick fence is a code block, always) carries a numbered image series (0..n) + fps; installed and enabled, the serve-time filter decodes it into stacked frames and animates them — pure CSS steps-by-delay, no JS. Admin routes mint fences and re-time the speed (mint, speed). BREAKING since 0.3.0: old three-tick stop-motion fences no longer decode — they stand as visible code. Malformed fences stay visible in the md: degrades, never dead.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "plugins/stop-motion"
         },
@@ -24,8 +24,8 @@
             "kind": "plugin",
             "name": "drunken-monk",
             "title": "Drunken Monk",
-            "version": "0.2.0",
-            "description": "Machine-generated payloads living plainly in the md: a ```drunken-monk fence carries a monk banner + a sealed base64 envelope; installed and enabled, the serve-time filter decodes it into style/script/html behaviour — ONLY envelopes sealed by the admin mint route (host HMAC integrity stamp; a hand-crafted fence degrades to the visible notice — editors cannot forge what admins mint). Editor keeps the monk, published page keeps the behaviour.",
+            "version": "0.3.0",
+            "description": "Machine-generated payloads living plainly in the md: a ````drunken-monk fence (four ticks — the plugin-fence boundary; a three-tick fence is a code block, always) carries a monk banner + a sealed base64 envelope; installed and enabled, the serve-time filter decodes it into style/script/html behaviour — ONLY envelopes sealed by the admin mint route (host HMAC integrity stamp; a hand-crafted fence degrades to the visible notice — editors cannot forge what admins mint). BREAKING since 0.3.0: old three-tick monk fences no longer decode — they stand as visible code. Editor keeps the monk, published page keeps the behaviour.",
             "requiresSchmarrn": ">=1.0.0",
             "path": "plugins/drunken-monk"
         },

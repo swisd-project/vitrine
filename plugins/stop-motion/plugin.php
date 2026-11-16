@@ -3,8 +3,10 @@
 /**
  * 1. Relative path: plugins/stop-motion/plugin.php
  * 2. Description: STOP MOTION — a numbered image series (0..n) plays as a
- *                 stop-motion animation. The author drops a ```stop-motion
- *                 fence into the md; it carries a single-line JSON config
+ *                 stop-motion animation. The author drops a ````stop-motion
+ *                 fence into the md (THE FENCE BOUNDARY: four ticks is a
+ *                 PLUGIN fence, three is code, always); it carries a
+ *                 single-line JSON config
  *                 ({files:[...]} or {prefix,count,ext,start} — counting from
  *                 start, default 0 — plus fps and an optional caption). mdms
  *                 renders the fence untouched (<pre><code>) with the config
@@ -108,11 +110,11 @@ function stop_motion_fence(array $cfg): string
         $clean['caption'] = $cfg['caption'];
     }
     $payload = json_encode($clean, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    return "```stop-motion\n{$payload}\n```";
+    return "````stop-motion\n{$payload}\n````";
 }
 
 /**
- * The serve-time contentFilter (p6 slice 2): decode every ```stop-motion block
+ * The serve-time contentFilter (p6 slice 2): decode every ````stop-motion block
  * and swap it for the animated markup. Fence survives until decoded correctly —
  * the notice law. The plugin's stage CSS is injected once, on the first
  * conversion, at the end of the body.
@@ -121,14 +123,14 @@ function stop_motion_fence(array $cfg): string
  */
 function plugin_stop_motion_page(array $ctx, string $html): string
 {
-    $marker = '/<pre><code class="[^"]*language-stop-motion[^"]*">(.*?)<\/code><\/pre>/s';
+    $marker = '/<pre><code[^>]*data-sm-plugin-fence="stop-motion"[^>]*>(.*?)<\/code><\/pre>/s';
     $seq = 0;
     $out = (string)preg_replace_callback($marker, function (array $m) use ($ctx, &$seq): string {
         $text = html_entity_decode($m[1], ENT_QUOTES);
         // The fence may hold the config in one line, pretty-printed, with stray
         // fence marks clinging — the marks leave, the rest is the JSON config.
         $lines = array_values(array_filter(array_map('trim', explode("\n", $text)), fn($l) => $l !== ''));
-        $lines = array_values(array_filter($lines, fn($l) => !str_starts_with($l, '```')));
+        $lines = array_values(array_filter($lines, fn($l) => !str_starts_with($l, '````')));
         if ($lines === []) {
             return $m[0]; // empty shutter — nothing to decode, notice stays
         }
@@ -278,7 +280,7 @@ function plugin_stop_motion_route_speed(string $method, array $body): array
     // Normalize the paste: full fence, bare payload, pretty-printed config,
     // or fence delimiters clinging anywhere — the marks leave, the rest is JSON.
     $lines = array_values(array_filter(array_map('trim', explode("\n", $input)), fn($l) => $l !== ''));
-    $lines = array_values(array_filter($lines, fn($l) => !str_starts_with($l, '```')));
+    $lines = array_values(array_filter($lines, fn($l) => !str_starts_with($l, '````')));
     $input = implode("\n", $lines);
     $cfg = json_decode($input, true);
     if (!is_array($cfg) || ($clean = stop_motion_config($cfg)) === null) {
