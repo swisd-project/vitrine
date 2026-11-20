@@ -7,6 +7,13 @@
       /* framed but sealed — the parent's fallback height stands */
     }
   }
+  // THE REACTIVE LAW: a reflow (the parent resizes the frame, the user
+  // turns the zoom) changes the drawing's height — report again, debounced.
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (resizeTimer !== null) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(reportHeight, 120);
+  });
   function show(d) {
     d.classList.remove('sm-mermaid-pending');
     reportHeight();
@@ -23,7 +30,11 @@
     });
     return;
   }
-  var STEPS = [1, 1.25, 1.5, 2, 2.5, 3];
+  // THE ZOOM LAW (user order 2026-11-20, same as the canvas zoom): fine 5%
+  // steps — + zooms IN (100, 105, 110, …), − zooms OUT (95, 90, 85, …) —
+  // BOTH directions open at 100%, bounded 50–300%. The level rides as a
+  // plain percent; no step-index ladder to drift.
+  var ZOOM_MIN = 50, ZOOM_MAX = 300, ZOOM_STEP = 5;
   function dressZoom(d) {
     var box = document.createElement('div');
     box.className = 'sm-mermaid-box';
@@ -37,17 +48,20 @@
     val.type = 'button'; val.className = 'sm-mermaid-zoom-val'; val.textContent = '100%'; val.title = 'Reset to 100%';
     var inn = document.createElement('button');
     inn.type = 'button'; inn.textContent = '+'; inn.setAttribute('aria-label', 'Zoom in');
-    var at = 0;
+    var at = 100;
     function apply() {
-      box.style.setProperty('--sm-mermaid-zoom', String(STEPS[at]));
-      val.textContent = Math.round(STEPS[at] * 100) + '%';
-      out.disabled = at === 0;
-      inn.disabled = at === STEPS.length - 1;
-      reportHeight(); // a zoom turn grows the drawing — a framing parent must grow with it
+      box.style.setProperty('--sm-mermaid-zoom', String(at / 100));
+      val.textContent = at + '%';
+      out.disabled = at <= ZOOM_MIN;
+      inn.disabled = at >= ZOOM_MAX;
+      // NO reportHeight on a zoom turn (user order 2026-11-20): the frame's
+      // size is fixed by the 100% render — zooming scales the CONTENTS
+      // inside the canvas, the canvas scrolls internally, the PAGE never
+      // moves. Re-reporting here would grow the frame and re-flow the page.
     }
-    out.addEventListener('click', function (e) { e.stopPropagation(); if (at > 0) { at--; apply(); } });
-    inn.addEventListener('click', function (e) { e.stopPropagation(); if (at < STEPS.length - 1) { at++; apply(); } });
-    val.addEventListener('click', function (e) { e.stopPropagation(); at = 0; apply(); });
+    out.addEventListener('click', function (e) { e.stopPropagation(); if (at > ZOOM_MIN) { at -= ZOOM_STEP; apply(); } });
+    inn.addEventListener('click', function (e) { e.stopPropagation(); if (at < ZOOM_MAX) { at += ZOOM_STEP; apply(); } });
+    val.addEventListener('click', function (e) { e.stopPropagation(); at = 100; apply(); });
     bar.append(out, val, inn);
     d.replaceWith(box);
     box.append(bar, d);

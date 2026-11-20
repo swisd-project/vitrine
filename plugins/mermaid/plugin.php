@@ -129,8 +129,14 @@ function plugin_mermaid_page(array $ctx, string $html): string
    THE BOX (per diagram, never per page) and the canvas' width compensates,
    so the drawing grows into the column instead of over it. The page's zoom
    handle is the core's business; this one is the ware's. */
-.sm-mermaid-box { position:relative; }
-.sm-mermaid-box .mermaid { zoom:var(--sm-mermaid-zoom,1); width:calc(100% / var(--sm-mermaid-zoom,1)); }
+.sm-mermaid-box { position:relative; overflow-x:auto; }
+/* THE ZOOM LAW (user order 2026-11-20): + zooms IN (100, 105, …), − zooms
+   OUT (95, 90, …) — the drawing's rendered width is the column × the level.
+   NO width compensation on the container (the old calc(100% / zoom) narrowed
+   the box while the responsive svg shrank to fit it — + visually zoomed
+   OUT). The svg scales directly; a zoom past the column overflows the BOX
+   (scoped horizontal scroll), never the page. */
+.sm-mermaid-box .mermaid svg { width:calc(100% * var(--sm-mermaid-zoom,1)) !important; max-width:none !important; height:auto; }
 .sm-mermaid-zoom {
   position:absolute; top:.35rem; right:.35rem; z-index:2; display:flex; align-items:center; gap:.05rem;
   padding:.15rem; background:var(--batter,#fff); border:1px solid var(--line,#e4e8ec); border-radius:4px;
