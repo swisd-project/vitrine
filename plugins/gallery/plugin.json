@@ -1,0 +1,11 @@
+{
+  "name": "gallery",
+  "title": "Gallery",
+  "version": "0.0.1",
+  "description": "Scaffold plugin — a minimal valid proof of the p6 contract: one public route (status). Extend the capabilities in the next instruction.",
+  "capabilities": {
+    "routes": [
+      { "path": "status", "auth": "public" }
+    ]
+  }
+}

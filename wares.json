@@ -58,6 +58,15 @@
             "description": "The CMS's API surface as a ware: one GET hands a headless consumer the whole published site as JSON — the site face plus every page with title, slug, url, tags and the rendered body (body=0 for the light index). Plus a public needle (search) and a heartbeat (status). Read-only by law: never writes, never leaks a draft, answers the same to every hand. Every public route sits behind the plugin's own Access Keys panel: the admin keeps their own master secret (never shown, never usable as ?key=) and issues labelled access keys from it — consumers present ?key=<access key>; without a valid one the API answers only 'Bakery closed.'",
             "requiresSchmarrn": ">=1.0.0",
             "path": "plugins/bienenstich"
+        },
+        {
+            "kind": "plugin",
+            "name": "gallery",
+            "title": "Gallery",
+            "version": "0.0.1",
+            "description": "Scaffold plugin — a minimal valid proof of the p6 contract: one public route (status). Extend the capabilities in the next instruction.",
+            "requiresSchmarrn": ">=1.0.0",
+            "path": "plugins/gallery"
         }
     ]
 }
